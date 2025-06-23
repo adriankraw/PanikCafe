@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include <filesystem>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <cstddef>
@@ -38,7 +39,9 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
 struct Game {
     std::string playerName;
     int         playerAge;
-
+    int         customers;
+    float       customersCooldown;
+    float       customersCooldownMax;
     int         smallCupsAmount;
     int         bigCupsAmount;
     int         beansAmount;
@@ -111,13 +114,13 @@ int main(int argc, char *argv[]) {
     float rotation = 90;
     float uniformScale = 1.25f;
     float time = 0;
-    Model modelTarget = LoadModel("C:\\Users\\yui\\Desktop\\raylibLearning\\CafeBar.glb");
+    Model modelTarget = LoadModel("./CafeBar.glb");
     modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
-    Shader screenShader = LoadShader(0, TextFormat("C:\\Users\\yui\\Desktop\\raylibLearning\\screenFragmentShader.glsl", 330));
+    Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
     Shader shadowmapShader = LoadShader(
-            TextFormat("C:\\Users\\yui\\Desktop\\raylibLearning\\shadowmapVShader.glsl",330),
-            TextFormat("C:\\Users\\yui\\Desktop\\raylibLearning\\shadowmapFShader.glsl", 330));
+            TextFormat("./shadowmapVShader.glsl",330),
+            TextFormat("./shadowmapFShader.glsl", 330));
     Camera3D lightCam = Camera3D{0};
     lightCam.position = Vector3Scale(lightPosition, 1.0f);
     lightCam.target = Vector3{0,0,0};
@@ -128,9 +131,11 @@ int main(int argc, char *argv[]) {
     SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
     SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
 
-    Shader coolShader = LoadShader(TextFormat("C:\\Users\\yui\\Desktop\\raylibLearning\\vertexShader.glsl", 330),
-                                   TextFormat("C:\\Users\\yui\\Desktop\\raylibLearning\\fragmentShader.glsl", 330));
-
+    Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330),
+                                   TextFormat("./fragmentShader.glsl", 330));
+    std::string currentPath = std::filesystem::current_path().c_str();
+    Texture2D colorMap = LoadTexture(currentPath.append("/texture/colorMap.png").c_str());
+    SetShaderValueTexture(screenShader, GetShaderLocationAttrib(screenShader, "colormap"), colorMap);
 
     SetTraceLogLevel(LOG_WARNING);
 
@@ -138,6 +143,9 @@ int main(int argc, char *argv[]) {
     Game game = Game();
     game.playerName = "olantern";
     game.playerAge = 28;
+    game.customers = 0;
+    game.customersCooldown = 60;
+    game.customersCooldownMax = 60;
     game.smallCupsAmount = 10;
     game.bigCupsAmount = 10;
     game.beansAmount = 10;
@@ -149,9 +157,10 @@ int main(int argc, char *argv[]) {
     game.madeLongCafeAmount = 0;
 
     while (!WindowShouldClose()) {
+        game.customersCooldown-= GetFrameTime();
+        
         ReadInput(&lightPosition, coolShader);
         lightCam.position = Vector3Scale( lightPosition, 1.0f);
-
 
         // shadowRender
         Matrix lightProj;
@@ -278,7 +287,12 @@ int main(int argc, char *argv[]) {
                 printf("get small cups \n");
             }
             GuiLabel(labelRect, std::string("Small Cups: ").append(std::to_string(game.smallCupsAmount)).c_str());
-
+            buttonRect.y += 30;
+            labelRect.y += 30;
+            if (GuiButton(buttonRect, "Large Cups")) {
+                printf("Large Cups \n");
+            }
+            GuiLabel(labelRect, std::string("Large Cups: ").append(std::to_string(game.bigCupsAmount)).c_str());
 
             DrawText(timebuffer,5,5,48, BLACK);
         }

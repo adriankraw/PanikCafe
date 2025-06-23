@@ -8,6 +8,7 @@ in vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float scared;
+uniform sampler2D colormap;
 
 // Output fragment color
 out vec4 finalColor;
@@ -21,11 +22,14 @@ void main()
     float colorDiff = 0.2f;
     
     vec4 texelColor = texture(texture0, uv);
+    texelColor.xyz = vec3(length(texelColor.xyz));
+    texelColor = texture(colormap, vec2(0.0f,0.0f));
+    /*
     int samplerCount = 1;
 
-    texelColor = vec4(0);
-    samplerCount = 0;
-    int testRange = 1;
+    //texelColor = vec4(0);
+    samplerCount = 1;
+    int testRange = 0;
     for(int x = -testRange; x <= testRange; x++)
     {
         for(int y = -testRange; y <= testRange; y++)
@@ -44,12 +48,14 @@ void main()
     texelColor /= samplerCount;
     if(length(texelColor.rgb) <= 10.0f)
     {
-        texelColor = texture(texture0, uv);
+        //texelColor = texture(texture0, uv);
     }else{
-        texelColor = vec4(0);
+        //texelColor = vec4(0);
     }
     //texelColor = texture(texture0, uv);
+    */
     vec3 result = texelColor.rgb;
+
     //result = floor(result * colorRes) / colorRes;
     finalColor = vec4(result, 1.0f);
 }
