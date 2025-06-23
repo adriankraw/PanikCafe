@@ -114,13 +114,12 @@ int main(int argc, char *argv[]) {
     float rotation = 90;
     float uniformScale = 1.25f;
     float time = 0;
-    Model modelTarget = LoadModel("./CafeBar.glb");
+    Model modelTarget = LoadModel("C:/Users/yui/Desktop/raylibLearning/CafeBar.glb");
     modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
-    Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
-    Shader shadowmapShader = LoadShader(
-            TextFormat("./shadowmapVShader.glsl",330),
-            TextFormat("./shadowmapFShader.glsl", 330));
+    Shader screenShader = LoadShader(0, TextFormat("C:/Users/yui/Desktop/raylibLearning/screenFragmentShader.glsl", 330));
+    Shader shadowmapShader = LoadShader(TextFormat("C:/Users/yui/Desktop/raylibLearning/shadowmapVShader.glsl", 330),
+                                        TextFormat("C:/Users/yui/Desktop/raylibLearning/shadowmapFShader.glsl", 330));
     Camera3D lightCam = Camera3D{0};
     lightCam.position = Vector3Scale(lightPosition, 1.0f);
     lightCam.target = Vector3{0,0,0};
@@ -131,11 +130,12 @@ int main(int argc, char *argv[]) {
     SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
     SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
 
-    Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330),
-                                   TextFormat("./fragmentShader.glsl", 330));
-    std::string currentPath = std::filesystem::current_path().c_str();
-    Texture2D colorMap = LoadTexture(currentPath.append("/texture/colorMap.png").c_str());
-    SetShaderValueTexture(screenShader, GetShaderLocationAttrib(screenShader, "colormap"), colorMap);
+    Shader coolShader = LoadShader(TextFormat("C:/Users/yui/Desktop/raylibLearning/vertexShader.glsl", 330),
+                                   TextFormat("C:/Users/yui/Desktop/raylibLearning/fragmentShader.glsl", 330));
+
+    Texture2D colorMap = LoadTexture("C:/Users/yui/Desktop/raylibLearning/texture/colorMap.png");
+    SetTextureFilter(colorMap, RL_TEXTURE_FILTER_LINEAR);
+    SetTextureWrap(colorMap, TEXTURE_WRAP_REPEAT);
 
     SetTraceLogLevel(LOG_WARNING);
 
@@ -251,6 +251,7 @@ int main(int argc, char *argv[]) {
 
             BeginShaderMode(screenShader);
             {
+                SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
                 DrawTextureRec(
                     screenTexture.texture,
                     Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},

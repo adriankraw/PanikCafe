@@ -22,8 +22,8 @@ void main()
     float colorDiff = 0.2f;
     
     vec4 texelColor = texture(texture0, uv);
-    texelColor.xyz = vec3(length(texelColor.xyz));
-    texelColor = texture(colormap, vec2(0.0f,0.0f));
+    texelColor.a = length(texelColor.xyz);
+    texelColor = texture(colormap, vec2(clamp(texelColor.a,0.0f,1.0f), 0.0f));
     /*
     int samplerCount = 1;
 
