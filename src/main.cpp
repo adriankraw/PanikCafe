@@ -5,52 +5,52 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <cstddef>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <ostream>
 #include <string>
 
 void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     if (IsKeyDown(KEY_A)) {
         lightPosition->x += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
-                       SHADER_UNIFORM_VEC3);
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_D)) {
         lightPosition->x += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
-                       SHADER_UNIFORM_VEC3);
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_W)) {
         lightPosition->z += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
-                       SHADER_UNIFORM_VEC3);
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_S)) {
         lightPosition->z += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
-                       SHADER_UNIFORM_VEC3);
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyPressed(KEY_SPACE)) {
-        printf("(%f/%f/%f)", lightPosition->x, lightPosition->y, lightPosition->z);
+        printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
     }
 }
 
 struct Game {
     std::string playerName;
-    int         playerAge;
-    int         customers;
-    float       customersCooldown;
-    float       customersCooldownMax;
-    int         smallCupsAmount;
-    int         bigCupsAmount;
-    int         beansAmount;
-    int         grindedBeansAmount;
-    int         cowMilkAmount;
-    int         oatMilkAmount;
-    int         madeEspressoAmount;
-    int         madeLatteAmount;
-    int         madeLongCafeAmount;
+    int playerAge;
+    float playerActionValue;
+    bool playerActionStarted;
+    std::queue<std::function<void()>> playerAction;
+    int customers;
+    int customersMax;
+    float customersCooldown;
+    float customersCooldownMax;
+    int smallCupsAmount;
+    int bigCupsAmount;
+    int beansAmount;
+    int grindedBeansAmount;
+    int cowMilkAmount;
+    int oatMilkAmount;
+    int madeEspressoAmount;
+    int madeLatteAmount;
+    int madeLongCafeAmount;
 };
 
 RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
@@ -90,6 +90,8 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     return target;
 }
 
+void increaseBeans(Game *_game) { _game->beansAmount++; }
+
 int main(int argc, char *argv[]) {
 
     InitWindow(1280, 720, "CodingProject");
@@ -114,15 +116,15 @@ int main(int argc, char *argv[]) {
     float rotation = 90;
     float uniformScale = 1.25f;
     float time = 0;
-    Model modelTarget = LoadModel("C:/Users/yui/Desktop/raylibLearning/CafeBar.glb");
+    Model modelTarget = LoadModel("./CafeBar.glb");
     modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
-    Shader screenShader = LoadShader(0, TextFormat("C:/Users/yui/Desktop/raylibLearning/screenFragmentShader.glsl", 330));
-    Shader shadowmapShader = LoadShader(TextFormat("C:/Users/yui/Desktop/raylibLearning/shadowmapVShader.glsl", 330),
-                                        TextFormat("C:/Users/yui/Desktop/raylibLearning/shadowmapFShader.glsl", 330));
+    Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
+    Shader shadowmapShader =
+        LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
     Camera3D lightCam = Camera3D{0};
     lightCam.position = Vector3Scale(lightPosition, 1.0f);
-    lightCam.target = Vector3{0,0,0};
+    lightCam.target = Vector3{0, 0, 0};
     lightCam.projection = CAMERA_ORTHOGRAPHIC;
     lightCam.up = Vector3{0, 1, 0};
     lightCam.fovy = 25.0f;
@@ -130,20 +132,20 @@ int main(int argc, char *argv[]) {
     SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
     SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
 
-    Shader coolShader = LoadShader(TextFormat("C:/Users/yui/Desktop/raylibLearning/vertexShader.glsl", 330),
-                                   TextFormat("C:/Users/yui/Desktop/raylibLearning/fragmentShader.glsl", 330));
+    Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330), TextFormat("./fragmentShader.glsl", 330));
 
-    Texture2D colorMap = LoadTexture("C:/Users/yui/Desktop/raylibLearning/texture/colorMap.png");
-    SetTextureFilter(colorMap, RL_TEXTURE_FILTER_LINEAR);
-    SetTextureWrap(colorMap, TEXTURE_WRAP_REPEAT);
+    Texture2D colorMap = LoadTexture("./texture/colorMap.png");
 
     SetTraceLogLevel(LOG_WARNING);
 
-    //Load GameStruct
+    // Load GameStruct
     Game game = Game();
     game.playerName = "olantern";
     game.playerAge = 28;
+    game.playerActionValue = 0.0f;
+    game.playerActionStarted = false;
     game.customers = 0;
+    game.customersMax = 10;
     game.customersCooldown = 60;
     game.customersCooldownMax = 60;
     game.smallCupsAmount = 10;
@@ -157,10 +159,10 @@ int main(int argc, char *argv[]) {
     game.madeLongCafeAmount = 0;
 
     while (!WindowShouldClose()) {
-        game.customersCooldown-= GetFrameTime();
-        
+        game.customersCooldown -= GetFrameTime();
+
         ReadInput(&lightPosition, coolShader);
-        lightCam.position = Vector3Scale( lightPosition, 1.0f);
+        lightCam.position = Vector3Scale(lightPosition, 1.0f);
 
         // shadowRender
         Matrix lightProj;
@@ -177,10 +179,10 @@ int main(int argc, char *argv[]) {
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
-                
+
                 for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
-                    DrawMesh(modelTarget.meshes[mesh_index], modelTarget.materials[modelTarget.meshMaterial[mesh_index]],
-                             modelTarget.transform);
+                    DrawMesh(modelTarget.meshes[mesh_index],
+                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
                 }
             }
             EndMode3D();
@@ -188,7 +190,7 @@ int main(int argc, char *argv[]) {
         EndTextureMode();
         Matrix lightViewProj = MatrixMultiply(lightView, lightProj);
         SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), lightViewProj);
-        
+
         // light & color
         viewPos = mainCam.position;
         viewDir = Vector3Normalize(mainCam.target - viewPos);
@@ -196,7 +198,7 @@ int main(int argc, char *argv[]) {
                         SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
-        //SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
+        // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
         for (size_t ma = 0; ma < modelTarget.materialCount; ++ma) {
             modelTarget.materials[ma].shader = coolShader;
@@ -211,10 +213,12 @@ int main(int argc, char *argv[]) {
             BeginMode3D(mainCam);
             {
                 for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
-                    Texture roughnessMap =
-                        modelTarget.materials[modelTarget.meshMaterial[mesh_index]].maps[MATERIAL_MAP_ROUGHNESS].texture;
-                    Texture metalicMap =
-                        modelTarget.materials[modelTarget.meshMaterial[mesh_index]].maps[MATERIAL_MAP_METALNESS].texture;
+                    Texture roughnessMap = modelTarget.materials[modelTarget.meshMaterial[mesh_index]]
+                                               .maps[MATERIAL_MAP_ROUGHNESS]
+                                               .texture;
+                    Texture metalicMap = modelTarget.materials[modelTarget.meshMaterial[mesh_index]]
+                                             .maps[MATERIAL_MAP_METALNESS]
+                                             .texture;
 
                     if (roughnessMap.id) {
                         SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "roughness0"), roughnessMap);
@@ -231,10 +235,11 @@ int main(int argc, char *argv[]) {
                                        RL_SHADER_UNIFORM_FLOAT);
                     }
                     if (shadowTexture.depth.id)
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
+                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
+                                              shadowTexture.depth);
 
-                    DrawMesh(modelTarget.meshes[mesh_index], modelTarget.materials[modelTarget.meshMaterial[mesh_index]],
-                             modelTarget.transform);
+                    DrawMesh(modelTarget.meshes[mesh_index],
+                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
                 }
                 // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
             }
@@ -256,16 +261,13 @@ int main(int argc, char *argv[]) {
                     screenTexture.texture,
                     Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                     Vector2{0, 0}, WHITE);
-                //DrawTexture(shadowTexture.texture, 0, 0, WHITE);
+                // DrawTexture(shadowTexture.texture, 0, 0, wHITE);
             }
             EndShaderMode();
 
-            DrawRectangle(screenTexture.texture.width-50, 
-                (screenTexture.texture.height-200.0f)/2, 
-                30, 200, BLUE);
-            DrawRectangle(screenTexture.texture.width - 50 + 4, 
-                (screenTexture.texture.height - 200.0f) / 2 + 4, 
-                30 - 8, 200 - 8, DARKBLUE);
+            DrawRectangle(screenTexture.texture.width - 50, (screenTexture.texture.height - 200.0f) / 2, 30, 200, BLUE);
+            DrawRectangle(screenTexture.texture.width - 50 + 4, (screenTexture.texture.height - 200.0f) / 2 + 4, 30 - 8,
+                          200 - 8, DARKBLUE);
             std::time_t currentClock = std::time(nullptr);
             char timebuffer[6];
             std::strftime(timebuffer, sizeof(timebuffer), "%H:%M", std::localtime(&currentClock));
@@ -273,7 +275,11 @@ int main(int argc, char *argv[]) {
             Rectangle buttonRect{30, 100, 100, 25};
             Rectangle labelRect{150, 100, 100, 25};
             if (GuiButton(buttonRect, "get Beans")) {
-                printf("get Beans \n");
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseBeans(&game); });
+                    game.playerActionStarted = true;
+                    printf("get Beans \n");
+                }
             }
             GuiLabel(labelRect, std::string("Beans: ").append(std::to_string(game.beansAmount)).c_str());
             buttonRect.y += 30;
@@ -294,10 +300,60 @@ int main(int argc, char *argv[]) {
                 printf("Large Cups \n");
             }
             GuiLabel(labelRect, std::string("Large Cups: ").append(std::to_string(game.bigCupsAmount)).c_str());
+            buttonRect.y +=30;
+            labelRect.y += 30;
+            if (GuiButton(buttonRect, "cow Milk")){
+                printf("get cow Milk \n");
+            }
+            GuiLabel(labelRect, std::string("Cow Milk: ").append(std::to_string(game.cowMilkAmount)).c_str());
+            buttonRect.y +=30;
+            labelRect.y += 30;
+            if (GuiButton(buttonRect, "oat Milk")){
+                printf("get oat Milk \n");
+            }
+            GuiLabel(labelRect, std::string("Oat Milk: ").append(std::to_string(game.oatMilkAmount)).c_str());
+            buttonRect.y +=50;
+            labelRect.y += 50;
+            if (GuiButton(buttonRect, "Espresso")){
+                printf("do Espresso \n");
+            }
+            GuiLabel(labelRect, std::string("Espresso: ").append(std::to_string(game.madeEspressoAmount)).c_str());
+            buttonRect.y +=30;
+            labelRect.y += 30;
+            if (GuiButton(buttonRect, "Latte")){
+                printf("do Latte \n");
+            }
+            GuiLabel(labelRect, std::string("Late: ").append(std::to_string(game.madeLatteAmount)).c_str());
+            buttonRect.y +=30;
+            labelRect.y += 30;
+            if (GuiButton(buttonRect, "LongCafe")){
+                printf("do LongCafe \n");
+            }
+            GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
 
-            DrawText(timebuffer,5,5,48, BLACK);
+            if (game.playerActionStarted) {
+                game.playerActionValue += GetFrameTime() / 10.0f;
+                float actionBarWidth = 500.0f;
+                float actionBarHeight = 50.0f;
+                GuiProgressBar(Rectangle{(screenTexture.texture.width - actionBarWidth) / 2,
+                                         screenTexture.texture.height - 50.0f, actionBarWidth, actionBarHeight},
+                               "", "", &game.playerActionValue, 0, 1);
+                if (game.playerActionValue == 1) {
+                    if (!game.playerAction.empty()) {
+                        std::function<void()> action = game.playerAction.front();
+                        action();
+                        game.playerAction.pop();
+                        game.playerActionValue = 0;
+                        if (game.playerAction.empty())
+                        {
+                            game.playerActionStarted = false;
+                        }
+                    }
+                }
+            }
+            DrawText(timebuffer, 5, 5, 48, BLACK);
         }
-        EndDrawing();       
+        EndDrawing();
     }
     rlUnloadFramebuffer(shadowTexture.id);
     UnloadShader(coolShader);

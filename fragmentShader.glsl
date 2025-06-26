@@ -104,7 +104,7 @@ void main()
     int shadowCounter = 0;
     int numSamples = 1;
     vec2 texelSize = vec2(1.0/float(shadowMapResolution));
-	float sampleDepth = texture(shadow0, shadowUVCoord).r;
+    float sampleDepth = texture(shadow0, shadowUVCoord).r;
     int range = 1;
     for (int x = -range; x <= range; x++)
     {
@@ -114,9 +114,9 @@ void main()
             numSamples++;
         }
     }
-	vec3 result = outgoingLight;
-	result *= pow(sampleDepth/numSamples,2.0);
-	//result += ambient/2;
+    vec3 result = outgoingLight;
+    result *= pow(sampleDepth/numSamples,2.0);
+    //result += ambient/2;
     //result = pow(result, vec3(1.0/2.2f));
     finalColor = vec4(result , textureMesh.a);
 }

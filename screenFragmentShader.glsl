@@ -7,7 +7,6 @@ in vec4 fragColor;
 // Input uniform values
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
-uniform float scared;
 uniform sampler2D colormap;
 
 // Output fragment color
