@@ -90,7 +90,18 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     return target;
 }
 
-void increaseBeans(Game *_game) { _game->beansAmount++; }
+void increaseBeanCount(Game *_game) { _game->beansAmount++; }
+void grindBeans(Game *_game) {
+    _game->grindedBeansAmount++;
+    _game->beansAmount--;
+}
+void increaseSmallCups(Game *_game){_game->smallCupsAmount++;}
+void increaseBigCups(Game *_game){_game->bigCupsAmount++;} 
+void increaseCowMilkCount(Game *_game){_game->cowMilkAmount++;}
+void increaseOatMilkCount(Game *_game){_game->oatMilkAmount++;}
+void increaseEspressoAmount(Game *_game){_game->madeEspressoAmount++;}
+void increaseLatteAmount(Game *_game){_game->madeLatteAmount++;}
+void increaseLongCafeAmount(Game *_game){_game->madeLongCafeAmount++;}
 
 int main(int argc, char *argv[]) {
 
@@ -276,58 +287,89 @@ int main(int argc, char *argv[]) {
             Rectangle labelRect{150, 100, 100, 25};
             if (GuiButton(buttonRect, "get Beans")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseBeans(&game); });
+                    game.playerAction.push([&game]() { increaseBeanCount(&game); });
                     game.playerActionStarted = true;
-                    printf("get Beans \n");
                 }
             }
             GuiLabel(labelRect, std::string("Beans: ").append(std::to_string(game.beansAmount)).c_str());
             buttonRect.y += 30;
             labelRect.y += 30;
             if (GuiButton(buttonRect, "grind beans")) {
-                printf("grind beans \n");
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { grindBeans(&game); });
+                    game.playerActionStarted = true;
+                    printf("grind beans \n");
+                }
             }
             GuiLabel(labelRect, std::string("Grind. beans: ").append(std::to_string(game.grindedBeansAmount)).c_str());
             buttonRect.y += 50;
             labelRect.y += 50;
             if (GuiButton(buttonRect, "Small Cups")) {
-                printf("get small cups \n");
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseSmallCups(&game); });
+                    game.playerActionStarted = true;
+                    printf("get small cups \n");
+                }
             }
             GuiLabel(labelRect, std::string("Small Cups: ").append(std::to_string(game.smallCupsAmount)).c_str());
             buttonRect.y += 30;
             labelRect.y += 30;
             if (GuiButton(buttonRect, "Large Cups")) {
-                printf("Large Cups \n");
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseBigCups(&game); });
+                    game.playerActionStarted = true;
+                    printf("Large Cups \n");
+                }
             }
             GuiLabel(labelRect, std::string("Large Cups: ").append(std::to_string(game.bigCupsAmount)).c_str());
-            buttonRect.y +=30;
+            buttonRect.y += 30;
             labelRect.y += 30;
-            if (GuiButton(buttonRect, "cow Milk")){
-                printf("get cow Milk \n");
+            if (GuiButton(buttonRect, "cow Milk")) {
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseCowMilkCount(&game); });
+                    game.playerActionStarted = true;
+                    printf("get cow Milk \n");
+                }
             }
             GuiLabel(labelRect, std::string("Cow Milk: ").append(std::to_string(game.cowMilkAmount)).c_str());
-            buttonRect.y +=30;
+            buttonRect.y += 30;
             labelRect.y += 30;
-            if (GuiButton(buttonRect, "oat Milk")){
-                printf("get oat Milk \n");
+            if (GuiButton(buttonRect, "oat Milk")) {
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseOatMilkCount(&game); });
+                    game.playerActionStarted = true;
+                    printf("get oat Milk \n");
+                }
             }
             GuiLabel(labelRect, std::string("Oat Milk: ").append(std::to_string(game.oatMilkAmount)).c_str());
-            buttonRect.y +=50;
+            buttonRect.y += 50;
             labelRect.y += 50;
-            if (GuiButton(buttonRect, "Espresso")){
-                printf("do Espresso \n");
+            if (GuiButton(buttonRect, "Espresso")) {
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseEspressoAmount(&game); });
+                    game.playerActionStarted = true;
+                    printf("do Espresso \n");
+                }
             }
             GuiLabel(labelRect, std::string("Espresso: ").append(std::to_string(game.madeEspressoAmount)).c_str());
-            buttonRect.y +=30;
+            buttonRect.y += 30;
             labelRect.y += 30;
-            if (GuiButton(buttonRect, "Latte")){
-                printf("do Latte \n");
+            if (GuiButton(buttonRect, "Latte")) {
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseLatteAmount(&game); });
+                    game.playerActionStarted = true;
+                    printf("do Latte \n");
+                }
             }
             GuiLabel(labelRect, std::string("Late: ").append(std::to_string(game.madeLatteAmount)).c_str());
-            buttonRect.y +=30;
+            buttonRect.y += 30;
             labelRect.y += 30;
-            if (GuiButton(buttonRect, "LongCafe")){
-                printf("do LongCafe \n");
+            if (GuiButton(buttonRect, "LongCafe")) {
+                if (game.playerActionStarted == false) {
+                    game.playerAction.push([&game]() { increaseLongCafeAmount(&game); });
+                    game.playerActionStarted = true;
+                    printf("do LongCafe \n");
+                }
             }
             GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
 
@@ -344,8 +386,7 @@ int main(int argc, char *argv[]) {
                         action();
                         game.playerAction.pop();
                         game.playerActionValue = 0;
-                        if (game.playerAction.empty())
-                        {
+                        if (game.playerAction.empty()) {
                             game.playerActionStarted = false;
                         }
                     }
