@@ -32,6 +32,12 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     }
 }
 
+struct light {
+    Vector3 position;
+    Vector3 direction;
+    Vector3 Color{23.47f, 21.31f, 20.79f};
+};
+
 struct Game {
     std::string playerName;
     int playerAge;
@@ -95,13 +101,13 @@ void grindBeans(Game *_game) {
     _game->grindedBeansAmount++;
     _game->beansAmount--;
 }
-void increaseSmallCups(Game *_game){_game->smallCupsAmount++;}
-void increaseBigCups(Game *_game){_game->bigCupsAmount++;} 
-void increaseCowMilkCount(Game *_game){_game->cowMilkAmount++;}
-void increaseOatMilkCount(Game *_game){_game->oatMilkAmount++;}
-void increaseEspressoAmount(Game *_game){_game->madeEspressoAmount++;}
-void increaseLatteAmount(Game *_game){_game->madeLatteAmount++;}
-void increaseLongCafeAmount(Game *_game){_game->madeLongCafeAmount++;}
+void increaseSmallCups(Game *_game) { _game->smallCupsAmount++; }
+void increaseBigCups(Game *_game) { _game->bigCupsAmount++; }
+void increaseCowMilkCount(Game *_game) { _game->cowMilkAmount++; }
+void increaseOatMilkCount(Game *_game) { _game->oatMilkAmount++; }
+void increaseEspressoAmount(Game *_game) { _game->madeEspressoAmount++; }
+void increaseLatteAmount(Game *_game) { _game->madeLatteAmount++; }
+void increaseLongCafeAmount(Game *_game) { _game->madeLongCafeAmount++; }
 
 int main(int argc, char *argv[]) {
 
@@ -127,7 +133,14 @@ int main(int argc, char *argv[]) {
     float rotation = 90;
     float uniformScale = 1.25f;
     float time = 0;
+
     Model modelTarget = LoadModel("./CafeBar.glb");
+    int animCount = 0;
+    unsigned int animIndex = 0;
+    unsigned int animCurrentFrame = 0;
+    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
+    std::printf(">> %i animations found \n", animCount);
+
     modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
@@ -147,8 +160,8 @@ int main(int argc, char *argv[]) {
 
     Texture2D colorMap = LoadTexture("./texture/colorMap.png");
 
-    SetTraceLogLevel(LOG_WARNING);
-
+    // SetTraceLogLevel(LOG_WARNING);
+    std::printf(">> loading GameStruct\n");
     // Load GameStruct
     Game game = Game();
     game.playerName = "olantern";
@@ -175,6 +188,13 @@ int main(int argc, char *argv[]) {
         ReadInput(&lightPosition, coolShader);
         lightCam.position = Vector3Scale(lightPosition, 1.0f);
 
+        for (int anim_index = 0; anim_index < animCount; ++animCount) {
+            ModelAnimation anim = modelAnimations[animIndex];
+            animCurrentFrame = (animCurrentFrame + 1) % anim.frameCount;
+            //UpdateModelAnimationBones(modelTarget, anim, animCurrentFrame);
+            //UpdateModelAnimation(modelTarget, anim, animCurrentFrame);
+        }
+
         // shadowRender
         Matrix lightProj;
         Matrix lightView;
@@ -192,8 +212,9 @@ int main(int argc, char *argv[]) {
                 lightProj = rlGetMatrixProjection();
 
                 for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
+                    Matrix animationMatrix = modelTarget.meshes[mesh_index].boneMatrices[animCurrentFrame];
                     DrawMesh(modelTarget.meshes[mesh_index],
-                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
+                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform * animationMatrix);
                 }
             }
             EndMode3D();

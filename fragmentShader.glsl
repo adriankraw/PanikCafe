@@ -71,6 +71,9 @@ void main()
     vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
     float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
     vec3 lightColor = vec3(23.47, 21.31, 20.79);
+    float lightdistance = length(lightPos - fragPosition);
+    float attenuation = 1.0/(lightdistance * lightdistance);
+    vec3 radiance = lightColor * attenuation;
     vec3 emissivityMesh = vec3(0.0);
 
     vec3 N = normalize(fragNormal);
@@ -85,12 +88,11 @@ void main()
 
     vec3 lambert = albedoMesh.xyz / PI;
     vec3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, L, N);
-    float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0);
-    cookTorranceDenominator = max(cookTorranceDenominator, 0.0001);
+    float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.00001;
     vec3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator; 
 
     vec3 BRDF = Kd * lambert + cookTorrance;
-    vec3 outgoingLight = emissivityMesh + BRDF * lightColor * max(dot(L, N), 0.0);
+    vec3 outgoingLight = emissivityMesh + BRDF * radiance* 20 * max(dot(L, N), 0.0);
 
     //shadow
     vec4 fragPosLightSpace = lightViewProj * vec4(fragPosition, 1);
