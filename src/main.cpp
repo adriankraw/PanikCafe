@@ -9,6 +9,8 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <queue>
+#include <functional>
 
 void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     if (IsKeyDown(KEY_A)) {
@@ -44,6 +46,7 @@ struct Game {
     float playerActionValue;
     bool playerActionStarted;
     std::queue<std::function<void()>> playerAction;
+
     int customers;
     int customersMax;
     float customersCooldown;
@@ -140,6 +143,14 @@ int main(int argc, char *argv[]) {
     unsigned int animCurrentFrame = 0;
     ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
     std::printf(">> %i animations found \n", animCount);
+    for (int i = 0; i < animCount; ++i) {
+        auto animations = modelAnimations[i];
+        std::printf("animation %i\n", i);
+        for (int f = 0; f < animations.frameCount; ++f) {
+            Vector3 pose = animations.framePoses[f]->translation;
+            std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
+        }
+    }
 
     modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
@@ -187,12 +198,10 @@ int main(int argc, char *argv[]) {
 
         ReadInput(&lightPosition, coolShader);
         lightCam.position = Vector3Scale(lightPosition, 1.0f);
-
-        for (int anim_index = 0; anim_index < animCount; ++animCount) {
+        for (int anim_index = 0; anim_index < animCount; ++anim_index) {
             ModelAnimation anim = modelAnimations[animIndex];
             animCurrentFrame = (animCurrentFrame + 1) % anim.frameCount;
-            //UpdateModelAnimationBones(modelTarget, anim, animCurrentFrame);
-            //UpdateModelAnimation(modelTarget, anim, animCurrentFrame);
+            UpdateModelAnimation(modelTarget, anim, animCurrentFrame);
         }
 
         // shadowRender
@@ -212,9 +221,8 @@ int main(int argc, char *argv[]) {
                 lightProj = rlGetMatrixProjection();
 
                 for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
-                    Matrix animationMatrix = modelTarget.meshes[mesh_index].boneMatrices[animCurrentFrame];
                     DrawMesh(modelTarget.meshes[mesh_index],
-                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform * animationMatrix);
+                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
                 }
             }
             EndMode3D();
@@ -271,8 +279,10 @@ int main(int argc, char *argv[]) {
                                               shadowTexture.depth);
 
                     DrawMesh(modelTarget.meshes[mesh_index],
-                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
+                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]],
+                             modelTarget.transform);
                 }
+                
                 // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
             }
             // Draw lightSphere
