@@ -1,16 +1,17 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include <cstdio>
 #include <filesystem>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <cstddef>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <ostream>
-#include <string>
 #include <queue>
-#include <functional>
+#include <string>
 
 void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     if (IsKeyDown(KEY_A)) {
@@ -40,12 +41,29 @@ struct light {
     Vector3 Color{23.47f, 21.31f, 20.79f};
 };
 
+class GameObject {
+  public:
+    GameObject(){};
+    GameObject(GameObject &&) = default;
+    GameObject(const GameObject &) = default;
+    GameObject &operator=(GameObject &&) = default;
+    GameObject &operator=(const GameObject &) = default;
+    ~GameObject() {};
+
+    std::string name;
+    Model model;
+    Vector3 translations;
+    Vector3 rotation;
+    Vector3 scaling;
+};
 struct Game {
     std::string playerName;
     int playerAge;
     float playerActionValue;
     bool playerActionStarted;
     std::queue<std::function<void()>> playerAction;
+
+    std::vector<GameObject> models;
 
     int customers;
     int customersMax;
@@ -126,7 +144,7 @@ int main(int argc, char *argv[]) {
     rlDisableBackfaceCulling();
     // rlDisableDepthMask();
     rlEnableDepthTest();
-    SetTargetFPS(30);
+    SetTargetFPS(60);
 
     Vector3 objPosition = {0, 0, 0};
     Vector3 lightPosition = {7.0f, 4.0f, 6.0f};
@@ -137,43 +155,6 @@ int main(int argc, char *argv[]) {
     float uniformScale = 1.25f;
     float time = 0;
 
-    Model modelTarget = LoadModel("./CafeBar.glb");
-    int animCount = 0;
-    unsigned int animIndex = 0;
-    unsigned int animCurrentFrame = 0;
-    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
-    std::printf(">> %i animations found \n", animCount);
-    for (int i = 0; i < animCount; ++i) {
-        auto animations = modelAnimations[i];
-        std::printf("animation %i\n", i);
-        for (int f = 0; f < animations.frameCount; ++f) {
-            Vector3 pose = animations.framePoses[f]->translation;
-            std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
-        }
-    }
-
-    modelTarget.transform *= MatrixScale(uniformScale, uniformScale, uniformScale);
-    RenderTexture screenTexture = LoadRenderTexture(1280, 720);
-    Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
-    Shader shadowmapShader =
-        LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
-    Camera3D lightCam = Camera3D{0};
-    lightCam.position = Vector3Scale(lightPosition, 1.0f);
-    lightCam.target = Vector3{0, 0, 0};
-    lightCam.projection = CAMERA_ORTHOGRAPHIC;
-    lightCam.up = Vector3{0, 1, 0};
-    lightCam.fovy = 25.0f;
-    RenderTexture2D shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
-    SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
-    SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
-
-    Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330), TextFormat("./fragmentShader.glsl", 330));
-
-    Texture2D colorMap = LoadTexture("./texture/colorMap.png");
-
-    // SetTraceLogLevel(LOG_WARNING);
-    std::printf(">> loading GameStruct\n");
-    // Load GameStruct
     Game game = Game();
     game.playerName = "olantern";
     game.playerAge = 28;
@@ -193,25 +174,78 @@ int main(int argc, char *argv[]) {
     game.madeLatteAmount = 0;
     game.madeLongCafeAmount = 0;
 
+    Model modelTarget = LoadModel("./CafeBar.glb");
+    for (int i = 0; i < modelTarget.meshCount; ++i) {
+        GameObject *gameO = new GameObject();
+        gameO->name = "";
+        gameO->model = LoadModelFromMesh(modelTarget.meshes[i]);
+        gameO->translations = Vector3{0.0f, 0.0f, 0.0f};
+        gameO->rotation = Vector3{0.0f, 0.0f, 0.0f};
+        gameO->scaling = Vector3{uniformScale, uniformScale, uniformScale};
+
+        game.models.emplace_back(*gameO);
+    }
+
+    int animCount = 0;
+    unsigned int animIndex = 0;
+    float animCurrentFrame = 0;
+    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
+    std::printf(">> %i animations found \n", animCount);
+    for (int i = 0; i < animCount; ++i) {
+        auto animations = modelAnimations[i];
+        std::printf("animation %i loaded\n", i);
+        for (int f = 0; f < animations.frameCount; ++f) {
+            Vector3 pose = animations.framePoses[f]->translation;
+            std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
+        }
+    }
+
+    RenderTexture screenTexture = LoadRenderTexture(1280, 720);
+    Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
+    Shader shadowmapShader =
+        LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
+    Camera3D lightCam = Camera3D{0};
+    lightCam.position = Vector3Scale(lightPosition, 1.0f);
+    lightCam.target = Vector3{0, 0, 0};
+    lightCam.projection = CAMERA_ORTHOGRAPHIC;
+    lightCam.up = Vector3{0, 1, 0};
+    lightCam.fovy = 25.0f;
+    RenderTexture2D shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
+    SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
+    SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
+
+    Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330), TextFormat("./fragmentShader.glsl", 330));
+
+    Texture2D colorMap = LoadTexture("./texture/colorMap.png");
+
+    SetTraceLogLevel(LOG_WARNING);
+    std::printf(">> loading GameStruct\n");
+    // Load GameStruct
+
     while (!WindowShouldClose()) {
         game.customersCooldown -= GetFrameTime();
-
         ReadInput(&lightPosition, coolShader);
         lightCam.position = Vector3Scale(lightPosition, 1.0f);
+
         for (int anim_index = 0; anim_index < animCount; ++anim_index) {
             ModelAnimation anim = modelAnimations[animIndex];
-            animCurrentFrame = (animCurrentFrame + 1) % anim.frameCount;
-            UpdateModelAnimation(modelTarget, anim, animCurrentFrame);
+            animCurrentFrame = (animCurrentFrame + 1.0f);
+            if (animCurrentFrame >= anim.frameCount)
+                animCurrentFrame = 0;
         }
 
         // shadowRender
         Matrix lightProj;
         Matrix lightView;
-        for (size_t ma = 0; ma < modelTarget.materialCount; ++ma) {
-            modelTarget.materials[ma].shader = shadowmapShader;
+        for (size_t gO = 0; gO < game.models.size(); ++gO) {
+            for (size_t ma = 0; ma < modelTarget.materialCount; ++ma) {
+                game.models[gO].model.materials[ma].shader = shadowmapShader;
+            }
         }
+
         rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK);
         rlSetClipPlanes(0.01f, 100.0f);
+        std::printf(">>start \n");
         BeginTextureMode(shadowTexture);
         {
             ClearBackground(RAYWHITE);
@@ -219,15 +253,15 @@ int main(int argc, char *argv[]) {
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
-
-                for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
-                    DrawMesh(modelTarget.meshes[mesh_index],
-                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]], modelTarget.transform);
+                for (auto _model: game.models) {
+                    std::printf(">>.");
+                    DrawModel(_model.model, _model.translations, 1.0f, WHITE);
                 }
             }
             EndMode3D();
         }
         EndTextureMode();
+        std::printf(">> test\n");
         Matrix lightViewProj = MatrixMultiply(lightView, lightProj);
         SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), lightViewProj);
 
@@ -278,11 +312,10 @@ int main(int argc, char *argv[]) {
                         SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
                                               shadowTexture.depth);
 
-                    DrawMesh(modelTarget.meshes[mesh_index],
-                             modelTarget.materials[modelTarget.meshMaterial[mesh_index]],
-                             modelTarget.transform);
+                    for (int model_index = 0; model_index < game.models.size(); ++model_index) {
+                        DrawModel(game.models[model_index].model, game.models[model_index].translations, 1.0f, WHITE);
+                    }
                 }
-                
                 // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
             }
             // Draw lightSphere
