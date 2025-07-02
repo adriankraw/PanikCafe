@@ -128,12 +128,12 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
 }
 
 void ImportModelWithAnimations(Game *game, std::string path) {
-    Model modelTarget = LoadModel("./CafeBar.glb");
+    Model modelTarget = LoadModel(path.c_str());
     game->models.emplace_back(GameObject("", modelTarget, Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{1, 1, 1}));
 
     int animCount = 0;
     unsigned int animIndex = 0;
-    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
+    ModelAnimation *modelAnimations = LoadModelAnimations(path.c_str(), &animCount);
     std::printf(">> %i animations found \n", animCount);
     for (int i = 0; i < animCount; ++i) {
         auto animations = modelAnimations[i];
@@ -204,6 +204,9 @@ int main(int argc, char *argv[]) {
     game.madeLatteAmount = 0;
     game.madeLongCafeAmount = 0;
 
+    ImportModelWithAnimations(&game, "./CafeBar.glb");
+    ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
+
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
     Shader shadowmapShader =
@@ -255,7 +258,14 @@ int main(int argc, char *argv[]) {
                 lightProj = rlGetMatrixProjection();
                 for (int i = 0; i < game.models.size(); ++i) {
                     if (game.models[i].model.meshCount > 0) {
-                        DrawModel(game.models[i].model, game.models[i].translation, 1.0f, WHITE);
+                        float frame = game.models[i].animationsFrame;
+                        Vector3 trans = game.models[i].translation;
+                        if(game.models[i].animations.size() > 0)
+                        {
+                            trans += game.models[i].animations[0].framePoses[i]->translation;
+                        }
+
+                        DrawModel(game.models[i].model, trans, 1.0f, WHITE);
                     }
                 }
             }
@@ -319,8 +329,14 @@ int main(int argc, char *argv[]) {
                                                   shadowTexture.depth);
 
                         for (int model_index = 0; model_index < game.models.size(); ++model_index) {
-                            DrawModel(game.models[model_index].model, game.models[model_index].translation, 1.0f,
-                                      WHITE);
+                        float frame = game.models[model_index].animationsFrame;
+                        Vector3 trans = game.models[model_index].translation;
+                        if(game.models[model_index].animations.size() > 0)
+                        {
+                            trans += game.models[model_index].animations[0].framePoses[model_index]->translation;
+                        }
+
+                        DrawModel(game.models[model_index].model, trans, 1.0f, WHITE);
                         }
                     }
                 }
