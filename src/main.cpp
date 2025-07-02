@@ -3,6 +3,7 @@
 #include "rlgl.h"
 #include <cstdio>
 #include <filesystem>
+#include <vector>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <cstddef>
@@ -43,18 +44,27 @@ struct light {
 
 class GameObject {
   public:
-    GameObject(){};
+    GameObject() {};
     GameObject(GameObject &&) = default;
     GameObject(const GameObject &) = default;
     GameObject &operator=(GameObject &&) = default;
     GameObject &operator=(const GameObject &) = default;
     ~GameObject() {};
+    GameObject(std::string _name, Model _model, Vector3 _translation, Vector3 _rotation, Vector3 _scaling) {
+        name = _name;
+        model = _model;
+        translation = _translation;
+        rotation = _rotation;
+        scaling = _scaling;
+    }
 
     std::string name;
     Model model;
-    Vector3 translations;
+    Vector3 translation;
     Vector3 rotation;
     Vector3 scaling;
+    std::vector<ModelAnimation> animations;
+    float animationsFrame;
 };
 struct Game {
     std::string playerName;
@@ -117,6 +127,25 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     return target;
 }
 
+void ImportModelWithAnimations(Game *game, std::string path) {
+    Model modelTarget = LoadModel("./CafeBar.glb");
+    game->models.emplace_back(GameObject("", modelTarget, Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{1, 1, 1}));
+
+    int animCount = 0;
+    unsigned int animIndex = 0;
+    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
+    std::printf(">> %i animations found \n", animCount);
+    for (int i = 0; i < animCount; ++i) {
+        auto animations = modelAnimations[i];
+        game->models.back().animations.emplace_back(modelAnimations[i]);
+        std::printf("animation %i loaded\n", i);
+        for (int f = 0; f < animations.frameCount; ++f) {
+            Vector3 pose = animations.framePoses[f]->translation;
+            std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
+        }
+    }
+}
+
 void increaseBeanCount(Game *_game) { _game->beansAmount++; }
 void grindBeans(Game *_game) {
     _game->grindedBeansAmount++;
@@ -160,6 +189,7 @@ int main(int argc, char *argv[]) {
     game.playerAge = 28;
     game.playerActionValue = 0.0f;
     game.playerActionStarted = false;
+    game.models = std::vector<GameObject>();
     game.customers = 0;
     game.customersMax = 10;
     game.customersCooldown = 60;
@@ -173,32 +203,6 @@ int main(int argc, char *argv[]) {
     game.madeEspressoAmount = 0;
     game.madeLatteAmount = 0;
     game.madeLongCafeAmount = 0;
-
-    Model modelTarget = LoadModel("./CafeBar.glb");
-    for (int i = 0; i < modelTarget.meshCount; ++i) {
-        GameObject *gameO = new GameObject();
-        gameO->name = "";
-        gameO->model = LoadModelFromMesh(modelTarget.meshes[i]);
-        gameO->translations = Vector3{0.0f, 0.0f, 0.0f};
-        gameO->rotation = Vector3{0.0f, 0.0f, 0.0f};
-        gameO->scaling = Vector3{uniformScale, uniformScale, uniformScale};
-
-        game.models.emplace_back(*gameO);
-    }
-
-    int animCount = 0;
-    unsigned int animIndex = 0;
-    float animCurrentFrame = 0;
-    ModelAnimation *modelAnimations = LoadModelAnimations("./CafeBar.glb", &animCount);
-    std::printf(">> %i animations found \n", animCount);
-    for (int i = 0; i < animCount; ++i) {
-        auto animations = modelAnimations[i];
-        std::printf("animation %i loaded\n", i);
-        for (int f = 0; f < animations.frameCount; ++f) {
-            Vector3 pose = animations.framePoses[f]->translation;
-            std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
-        }
-    }
 
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
@@ -219,7 +223,6 @@ int main(int argc, char *argv[]) {
     Texture2D colorMap = LoadTexture("./texture/colorMap.png");
 
     SetTraceLogLevel(LOG_WARNING);
-    std::printf(">> loading GameStruct\n");
     // Load GameStruct
 
     while (!WindowShouldClose()) {
@@ -227,25 +230,22 @@ int main(int argc, char *argv[]) {
         ReadInput(&lightPosition, coolShader);
         lightCam.position = Vector3Scale(lightPosition, 1.0f);
 
-        for (int anim_index = 0; anim_index < animCount; ++anim_index) {
-            ModelAnimation anim = modelAnimations[animIndex];
-            animCurrentFrame = (animCurrentFrame + 1.0f);
-            if (animCurrentFrame >= anim.frameCount)
-                animCurrentFrame = 0;
-        }
-
         // shadowRender
         Matrix lightProj;
         Matrix lightView;
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
-            for (size_t ma = 0; ma < modelTarget.materialCount; ++ma) {
+            for (int anim_index = 0; anim_index < game.models[gO].animations.size(); ++anim_index) {
+                game.models[gO].animationsFrame = (game.models[gO].animationsFrame + 1.0f);
+                if (game.models[gO].animationsFrame >= game.models[gO].animations[anim_index].frameCount)
+                    game.models[gO].animationsFrame = 0;
+            }
+            for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
                 game.models[gO].model.materials[ma].shader = shadowmapShader;
             }
         }
 
         rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK);
         rlSetClipPlanes(0.01f, 100.0f);
-        std::printf(">>start \n");
         BeginTextureMode(shadowTexture);
         {
             ClearBackground(RAYWHITE);
@@ -253,15 +253,15 @@ int main(int argc, char *argv[]) {
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
-                for (auto _model: game.models) {
-                    std::printf(">>.");
-                    DrawModel(_model.model, _model.translations, 1.0f, WHITE);
+                for (int i = 0; i < game.models.size(); ++i) {
+                    if (game.models[i].model.meshCount > 0) {
+                        DrawModel(game.models[i].model, game.models[i].translation, 1.0f, WHITE);
+                    }
                 }
             }
             EndMode3D();
         }
         EndTextureMode();
-        std::printf(">> test\n");
         Matrix lightViewProj = MatrixMultiply(lightView, lightProj);
         SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), lightViewProj);
 
@@ -274,8 +274,10 @@ int main(int argc, char *argv[]) {
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
         // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
-        for (size_t ma = 0; ma < modelTarget.materialCount; ++ma) {
-            modelTarget.materials[ma].shader = coolShader;
+        for (size_t gO = 0; gO < game.models.size(); ++gO) {
+            for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
+                game.models[gO].model.materials[ma].shader = coolShader;
+            }
         }
         SetShaderValue(coolShader, GetShaderLocation(coolShader, "shadowMapResolution"), &shadowMapResolution,
                        SHADER_UNIFORM_INT);
@@ -286,34 +288,40 @@ int main(int argc, char *argv[]) {
 
             BeginMode3D(mainCam);
             {
-                for (int mesh_index = 0; mesh_index < modelTarget.meshCount; ++mesh_index) {
-                    Texture roughnessMap = modelTarget.materials[modelTarget.meshMaterial[mesh_index]]
-                                               .maps[MATERIAL_MAP_ROUGHNESS]
-                                               .texture;
-                    Texture metalicMap = modelTarget.materials[modelTarget.meshMaterial[mesh_index]]
-                                             .maps[MATERIAL_MAP_METALNESS]
-                                             .texture;
+                for (size_t gO = 0; gO < game.models.size(); ++gO) {
+                    for (int mesh_index = 0; mesh_index < game.models[gO].model.meshCount; ++mesh_index) {
+                        Texture roughnessMap = game.models[gO]
+                                                   .model.materials[game.models[gO].model.meshMaterial[mesh_index]]
+                                                   .maps[MATERIAL_MAP_ROUGHNESS]
+                                                   .texture;
+                        Texture metalicMap = game.models[gO]
+                                                 .model.materials[game.models[gO].model.meshMaterial[mesh_index]]
+                                                 .maps[MATERIAL_MAP_METALNESS]
+                                                 .texture;
 
-                    if (roughnessMap.id) {
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "roughness0"), roughnessMap);
-                    } else {
-                        const float inserted = 0.8f;
-                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "roughness1"), &inserted,
-                                       RL_SHADER_UNIFORM_FLOAT);
-                    }
-                    if (metalicMap.id) {
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "metalic0"), metalicMap);
-                    } else {
-                        const float inserted = 0.8f;
-                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "metalic1"), &inserted,
-                                       RL_SHADER_UNIFORM_FLOAT);
-                    }
-                    if (shadowTexture.depth.id)
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
-                                              shadowTexture.depth);
+                        if (roughnessMap.id) {
+                            SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "roughness0"),
+                                                  roughnessMap);
+                        } else {
+                            const float inserted = 0.8f;
+                            SetShaderValue(coolShader, GetShaderLocation(coolShader, "roughness1"), &inserted,
+                                           RL_SHADER_UNIFORM_FLOAT);
+                        }
+                        if (metalicMap.id) {
+                            SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "metalic0"), metalicMap);
+                        } else {
+                            const float inserted = 0.8f;
+                            SetShaderValue(coolShader, GetShaderLocation(coolShader, "metalic1"), &inserted,
+                                           RL_SHADER_UNIFORM_FLOAT);
+                        }
+                        if (shadowTexture.depth.id)
+                            SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
+                                                  shadowTexture.depth);
 
-                    for (int model_index = 0; model_index < game.models.size(); ++model_index) {
-                        DrawModel(game.models[model_index].model, game.models[model_index].translations, 1.0f, WHITE);
+                        for (int model_index = 0; model_index < game.models.size(); ++model_index) {
+                            DrawModel(game.models[model_index].model, game.models[model_index].translation, 1.0f,
+                                      WHITE);
+                        }
                     }
                 }
                 // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
@@ -463,6 +471,9 @@ int main(int argc, char *argv[]) {
     rlUnloadFramebuffer(shadowTexture.id);
     UnloadShader(coolShader);
     UnloadShader(shadowmapShader);
-    UnloadModel(modelTarget);
+
+    for (size_t gO = 0; gO < game.models.size(); ++gO) {
+        UnloadModel(game.models[gO].model);
+    }
     return 0;
 }
