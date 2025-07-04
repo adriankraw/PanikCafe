@@ -56,6 +56,7 @@ class GameObject {
         translation = _translation;
         rotation = _rotation;
         scaling = _scaling;
+        animationCurrent = 0;
     }
 
     std::string name;
@@ -65,24 +66,38 @@ class GameObject {
     Vector3 scaling;
     std::vector<ModelAnimation> animations;
     float animationsFrame;
+    int animationCurrent;
 };
 enum CustomerNeed_Main {
-    Espresso = 0,
-    Late = 1,
-    Long = 2,
+    Main_None = 0,
+    Espresso,
+    Late,
+    Long,
 };
 enum CustomerNeed_Sup {
-    Cow = 0,
-    Oat = 1,
+    Sup_None = 0,
+    Cow,
+    Oat,
 };
 class Customer {
   public:
-    Customer();
+    Customer() {
+        active = false;
+        name = "customer";
+        need_main = CustomerNeed_Main::Espresso;
+        need_main_Count = 1;
+        need_sup_Count = CustomerNeed_Sup::Sup_None;
+        need_sup_Count = 0;
+        served = 0;
+        stressBringer = 1;
+    };
     Customer(Customer &&) = default;
     Customer(const Customer &) = default;
     Customer &operator=(Customer &&) = default;
     Customer &operator=(const Customer &) = default;
-    ~Customer();
+    ~Customer() {};
+
+    bool active;
 
     std::string name;
     CustomerNeed_Main need_main;
@@ -102,7 +117,8 @@ struct Game {
 
     std::vector<GameObject> models;
 
-    int customers;
+    std::vector<Customer> customers;
+    int customersCount;
     int customersMax;
     float stressLevel;
     float customersCooldown;
@@ -223,7 +239,8 @@ int main(int argc, char *argv[]) {
     game.playerActionValue = 0.0f;
     game.playerActionStarted = false;
     game.models = std::vector<GameObject>();
-    game.customers = 0;
+    game.customers = std::vector<Customer>(10);
+    game.customersCount = 0;
     game.customersMax = 10;
     game.customersCooldown = 60;
     game.customersCooldownMax = 60;
@@ -264,6 +281,21 @@ int main(int argc, char *argv[]) {
     while (!WindowShouldClose()) {
         game.customersCooldown -= GetFrameTime();
         ReadInput(&lightPosition, coolShader);
+        if (game.customersCount < game.customersMax) {
+            game.customersCooldown -= GetFrameTime();
+            if (game.customersCooldown <= 0) {
+                game.customersCount++; // change this to spanCustomer();
+                for (auto &cust : game.customers) {
+                    if (cust.active == false) {
+                        cust.active = true;
+                        cust.served = false;
+                        printf(">> customer entered the room -- Customers %i\n", game.customersCount);
+                        break;
+                    }
+                }
+                game.customersCooldown = game.customersCooldownMax;
+            }
+        }
 
         // shadowRender
         Matrix lightProj;
@@ -292,13 +324,37 @@ int main(int argc, char *argv[]) {
                     Vector3 trans = game.models[model_index].translation;
                     if (game.models[model_index].animations.size() > 0) {
                         float frame = game.models[model_index].animationsFrame;
-                        trans.x -= game.models[model_index].animations[0].framePoses[0]->translation.x / 1;
-                        trans.y -= game.models[model_index].animations[0].framePoses[0]->translation.z / 1;
-                        trans.z -= game.models[model_index].animations[0].framePoses[0]->translation.y / -1;
+                        trans.x -= game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[0]
+                                       ->translation.x /
+                                   1;
+                        trans.y -= game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[0]
+                                       ->translation.z /
+                                   1;
+                        trans.z -= game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[0]
+                                       ->translation.y /
+                                   -1;
 
-                        trans.x += game.models[model_index].animations[0].framePoses[(int)frame]->translation.x / 1;
-                        trans.y += game.models[model_index].animations[0].framePoses[(int)frame]->translation.z / 1;
-                        trans.z += game.models[model_index].animations[0].framePoses[(int)frame]->translation.y / -1;
+                        trans.x += game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[(int)frame]
+                                       ->translation.x /
+                                   1;
+                        trans.y += game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[(int)frame]
+                                       ->translation.z /
+                                   1;
+                        trans.z += game.models[model_index]
+                                       .animations[game.models[model_index].animationCurrent]
+                                       .framePoses[(int)frame]
+                                       ->translation.y /
+                                   -1;
                     }
                     DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
@@ -360,14 +416,37 @@ int main(int argc, char *argv[]) {
                         Vector3 trans = game.models[model_index].translation;
                         if (game.models[model_index].animations.size() > 0) {
                             float frame = game.models[model_index].animationsFrame;
-                            trans.x -= game.models[model_index].animations[0].framePoses[0]->translation.x / 1;
-                            trans.y -= game.models[model_index].animations[0].framePoses[0]->translation.z / 1;
-                            trans.z -= game.models[model_index].animations[0].framePoses[0]->translation.y / -1;
+                            trans.x -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.x /
+                                       1;
+                            trans.y -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.z /
+                                       1;
+                            trans.z -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.y /
+                                       -1;
 
-                            trans.x += game.models[model_index].animations[0].framePoses[(int)frame]->translation.x / 1;
-                            trans.y += game.models[model_index].animations[0].framePoses[(int)frame]->translation.z / 1;
-                            trans.z +=
-                                game.models[model_index].animations[0].framePoses[(int)frame]->translation.y / -1;
+                            trans.x += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.x /
+                                       1;
+                            trans.y += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.z /
+                                       1;
+                            trans.z += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.y /
+                                       -1;
                         }
                         DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1},
                                     WHITE);
@@ -495,7 +574,7 @@ int main(int argc, char *argv[]) {
             GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
 
             if (game.playerActionStarted) {
-                game.playerActionValue += GetFrameTime() / 10.0f;
+                game.playerActionValue += GetFrameTime();
                 float actionBarWidth = 500.0f;
                 float actionBarHeight = 50.0f;
                 GuiProgressBar(Rectangle{(screenTexture.texture.width - actionBarWidth) / 2,
