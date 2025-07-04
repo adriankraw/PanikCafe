@@ -140,7 +140,7 @@ void ImportModelWithAnimations(Game *game, std::string path) {
         game->models.back().animations.emplace_back(modelAnimations[i]);
         std::printf("animation %i loaded\n", i);
         for (int f = 0; f < animations.frameCount; ++f) {
-            //Vector3 pose = animations.framePoses[f]->translation;
+            // Vector3 pose = animations.framePoses[f]->translation;
             Vector3 pose = modelTarget.bindPose[f].translation;
             std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
         }
@@ -207,7 +207,6 @@ int main(int argc, char *argv[]) {
 
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
-    
 
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
@@ -242,8 +241,9 @@ int main(int argc, char *argv[]) {
                 game.models[gO].animationsFrame += 1;
                 if (game.models[gO].animationsFrame >= game.models[gO].animations[anim_index].frameCount)
                     game.models[gO].animationsFrame = 0;
-                //UpdateModelAnimationBones(game.models[gO].model, game.models[gO].animations[anim_index], game.models[gO].animationsFrame);
-                //UpdateModelAnimation(game.models[gO].model, game.models[gO].animations[anim_index], game.models[gO].animationsFrame);
+                // UpdateModelAnimationBones(game.models[gO].model, game.models[gO].animations[anim_index],
+                // game.models[gO].animationsFrame); UpdateModelAnimation(game.models[gO].model,
+                // game.models[gO].animations[anim_index], game.models[gO].animationsFrame);
             }
             for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
                 game.models[gO].model.materials[ma].shader = shadowmapShader;
@@ -259,14 +259,19 @@ int main(int argc, char *argv[]) {
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
-                for (int i = 0; i < game.models.size(); ++i) {
-                    float frame = game.models[i].animationsFrame;
-                    Vector3 trans = game.models[i].translation;
-                    if (game.models[i].animations.size() > 0) {
-                            //trans += game.models[i].animations[0].framePoses[(int)frame]->translation;
-                    }
+                for (int model_index = 0; model_index < game.models.size(); ++model_index) {
+                    Vector3 trans = game.models[model_index].translation;
+                    if (game.models[model_index].animations.size() > 0) {
+                        float frame = game.models[model_index].animationsFrame;
+                        trans.x -= game.models[model_index].animations[0].framePoses[0]->translation.x / 1;
+                        trans.y -= game.models[model_index].animations[0].framePoses[0]->translation.z / 1;
+                        trans.z -= game.models[model_index].animations[0].framePoses[0]->translation.y / -1;
 
-                    DrawModelEx(game.models[i].model, trans, Vector3{0,0,0}, 1.0f, Vector3{1,1,1}, WHITE);
+                        trans.x += game.models[model_index].animations[0].framePoses[(int)frame]->translation.x / 1;
+                        trans.y += game.models[model_index].animations[0].framePoses[(int)frame]->translation.z / 1;
+                        trans.z += game.models[model_index].animations[0].framePoses[(int)frame]->translation.y / -1;
+                    }
+                    DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
             }
             EndMode3D();
@@ -298,31 +303,15 @@ int main(int argc, char *argv[]) {
 
             BeginMode3D(mainCam);
             {
-                DrawGrid(10, 1.0f);
                 for (size_t gO = 0; gO < game.models.size(); ++gO) {
-                    Texture roughnessMap = game.models[gO]
+                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] = game.models[gO]
                                                .model.materials[game.models[gO].model.meshMaterial[0]]
-                                               .maps[MATERIAL_MAP_ROUGHNESS]
-                                               .texture;
-                    Texture metalicMap = game.models[gO]
+                                               .maps[MATERIAL_MAP_ROUGHNESS].texture.id;
+                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] = game.models[gO]
                                              .model.materials[game.models[gO].model.meshMaterial[0]]
                                              .maps[MATERIAL_MAP_METALNESS]
-                                             .texture;
+                                             .texture.id;
 
-                    if (roughnessMap.id) {
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "roughness0"), roughnessMap);
-                    } else {
-                        const float inserted = 0.8f;
-                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "roughness1"), &inserted,
-                                       RL_SHADER_UNIFORM_FLOAT);
-                    }
-                    if (metalicMap.id) {
-                        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "metalic0"), metalicMap);
-                    } else {
-                        const float inserted = 0.8f;
-                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "metalic1"), &inserted,
-                                       RL_SHADER_UNIFORM_FLOAT);
-                    }
                     if (shadowTexture.depth.id)
                         SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
                                               shadowTexture.depth);
@@ -331,15 +320,17 @@ int main(int argc, char *argv[]) {
                         Vector3 trans = game.models[model_index].translation;
                         if (game.models[model_index].animations.size() > 0) {
                             float frame = game.models[model_index].animationsFrame;
-                            trans.x -= game.models[model_index].animations[0].framePoses[0]->translation.x/ 1;
-                            trans.y -= game.models[model_index].animations[0].framePoses[0]->translation.z/ 1;
-                            trans.z -= game.models[model_index].animations[0].framePoses[0]->translation.y/-1;
+                            trans.x -= game.models[model_index].animations[0].framePoses[0]->translation.x / 1;
+                            trans.y -= game.models[model_index].animations[0].framePoses[0]->translation.z / 1;
+                            trans.z -= game.models[model_index].animations[0].framePoses[0]->translation.y / -1;
 
-                            trans.x += game.models[model_index].animations[0].framePoses[(int)frame]->translation.x/ 1;
-                            trans.y += game.models[model_index].animations[0].framePoses[(int)frame]->translation.z/ 1;
-                            trans.z += game.models[model_index].animations[0].framePoses[(int)frame]->translation.y/-1;
+                            trans.x += game.models[model_index].animations[0].framePoses[(int)frame]->translation.x / 1;
+                            trans.y += game.models[model_index].animations[0].framePoses[(int)frame]->translation.z / 1;
+                            trans.z +=
+                                game.models[model_index].animations[0].framePoses[(int)frame]->translation.y / -1;
                         }
-                    DrawModelEx(game.models[model_index].model, trans, Vector3{0,0,0}, 1.0f, Vector3{1,1,1}, WHITE);
+                        DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1},
+                                    WHITE);
                     }
                 }
                 // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
