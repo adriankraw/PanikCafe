@@ -66,6 +66,33 @@ class GameObject {
     std::vector<ModelAnimation> animations;
     float animationsFrame;
 };
+enum CustomerNeed_Main {
+    Espresso = 0,
+    Late = 1,
+    Long = 2,
+};
+enum CustomerNeed_Sup {
+    Cow = 0,
+    Oat = 1,
+};
+class Customer {
+  public:
+    Customer();
+    Customer(Customer &&) = default;
+    Customer(const Customer &) = default;
+    Customer &operator=(Customer &&) = default;
+    Customer &operator=(const Customer &) = default;
+    ~Customer();
+
+    std::string name;
+    CustomerNeed_Main need_main;
+    int need_main_Count;
+    CustomerNeed_Sup need_sup;
+    int need_sup_Count;
+    bool served;
+    float stressBringer;
+};
+
 struct Game {
     std::string playerName;
     int playerAge;
@@ -77,6 +104,7 @@ struct Game {
 
     int customers;
     int customersMax;
+    float stressLevel;
     float customersCooldown;
     float customersCooldownMax;
     int smallCupsAmount;
@@ -164,6 +192,10 @@ int main(int argc, char *argv[]) {
 
     InitWindow(1280, 720, "CodingProject");
 
+    // default materialValue
+    float def_roughness = 0.4f;
+    float def_metalic = 0.1f;
+
     Camera3D mainCam = {0};
     mainCam.position = Vector3{10, 10, 10};
     mainCam.target = Vector3{0, 0, 0};
@@ -241,9 +273,6 @@ int main(int argc, char *argv[]) {
                 game.models[gO].animationsFrame += 1;
                 if (game.models[gO].animationsFrame >= game.models[gO].animations[anim_index].frameCount)
                     game.models[gO].animationsFrame = 0;
-                // UpdateModelAnimationBones(game.models[gO].model, game.models[gO].animations[anim_index],
-                // game.models[gO].animationsFrame); UpdateModelAnimation(game.models[gO].model,
-                // game.models[gO].animations[anim_index], game.models[gO].animationsFrame);
             }
             for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
                 game.models[gO].model.materials[ma].shader = shadowmapShader;
@@ -304,13 +333,24 @@ int main(int argc, char *argv[]) {
             BeginMode3D(mainCam);
             {
                 for (size_t gO = 0; gO < game.models.size(); ++gO) {
-                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] = game.models[gO]
-                                               .model.materials[game.models[gO].model.meshMaterial[0]]
-                                               .maps[MATERIAL_MAP_ROUGHNESS].texture.id;
-                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] = game.models[gO]
-                                             .model.materials[game.models[gO].model.meshMaterial[0]]
-                                             .maps[MATERIAL_MAP_METALNESS]
-                                             .texture.id;
+                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] =
+                        game.models[gO]
+                            .model.materials[game.models[gO].model.meshMaterial[0]]
+                            .maps[MATERIAL_MAP_ROUGHNESS]
+                            .texture.id;
+                    if (game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] <= 0) {
+                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "roughness1"), &def_roughness,
+                                       SHADER_UNIFORM_FLOAT);
+                    }
+                    game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] =
+                        game.models[gO]
+                            .model.materials[game.models[gO].model.meshMaterial[0]]
+                            .maps[MATERIAL_MAP_METALNESS]
+                            .texture.id;
+                    if (game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] <= 0) {
+                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "metalic1"), &def_metalic,
+                                       SHADER_UNIFORM_FLOAT);
+                    }
 
                     if (shadowTexture.depth.id)
                         SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"),
