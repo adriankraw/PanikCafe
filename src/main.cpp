@@ -107,6 +107,18 @@ class Customer {
     bool served;
     float stressBringer;
 };
+Customer* GetFreeCustomer(std::vector<Customer>* _customer)
+{
+    for(size_t c = 0; c < _customer->size(); ++c)
+    {
+        if(_customer->at(c).active == false)
+        {
+            return &(_customer->at(c)); 
+            break;
+        }
+    }
+    return nullptr;
+}
 
 struct Game {
     std::string playerName;
@@ -285,7 +297,7 @@ int main(int argc, char *argv[]) {
             game.customersCooldown -= GetFrameTime();
             if (game.customersCooldown <= 0) {
                 game.customersCount++; // change this to spanCustomer();
-                for (auto &cust : game.customers) {
+                for (auto cust : game.customers) {
                     if (cust.active == false) {
                         cust.active = true;
                         cust.served = false;
@@ -572,6 +584,13 @@ int main(int argc, char *argv[]) {
                 }
             }
             GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
+            buttonRect.y += 60;
+            labelRect.y += 60;
+            if (GuiButton(buttonRect, "serve"))
+            {
+                printf("serving .... not inplemented\n");
+            }
+            GuiLabel(labelRect, GetFreeCustomer(&game.customers)->name.c_str());
 
             if (game.playerActionStarted) {
                 game.playerActionValue += GetFrameTime();

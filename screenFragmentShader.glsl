@@ -24,12 +24,12 @@ void main()
     //texelColor.a = length(texelColor.xyz);
     //texelColor = texture(colormap, vec2(clamp(texelColor.a,0.0f,1.0f), 0.0f));
 
-    /*
+    
     int samplerCount = 1;
 
-    //texelColor = vec4(0);
+    texelColor = vec4(0);
     samplerCount = 1;
-    int testRange = 0;
+    int testRange = 2;
     for(int x = -testRange; x <= testRange; x++)
     {
         for(int y = -testRange; y <= testRange; y++)
@@ -46,14 +46,28 @@ void main()
         }
     }
     texelColor /= samplerCount;
-    if(length(texelColor.rgb) <= 10.0f)
+    if(length(texelColor.rgb) <= 1.0f)
     {
-        //texelColor = texture(texture0, uv);
+        texelColor = texture(texture0, uv);
     }else{
-        //texelColor = vec4(0);
+        texelColor = vec4(0);
     }
     //texelColor = texture(texture0, uv);
-    */
+
+    if(clamp(texelColor.r+texelColor.g+texelColor.b, 0.0f, 1.0f) == 0)
+    {
+        int blurRange = 4;
+        for(int x = -blurRange; x <= blurRange; x++)
+        {
+            texelColor += texture(texture0,vec2(uv.x+x/width,uv.y));
+        }
+        for(int y = -blurRange; y <= blurRange; y++)
+        {
+            texelColor += texture(texture0,vec2(uv.x,uv.y+y/height));
+        }
+        texelColor /= 2*(1 + 2*blurRange);
+    }
+    
     vec3 result = texelColor.rgb;
 
     //result = floor(result * colorRes) / colorRes;

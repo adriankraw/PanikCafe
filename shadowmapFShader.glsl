@@ -25,5 +25,5 @@ void main()
     depth = 1.0/depth - 1.0/minclamp;
     depth /= (1/maxclamp-1/minclamp);
     gl_FragDepth = (depth);
-	finalColor = vec4(vec3(depth),1.0f);
+    finalColor = vec4(vec3(depth),1.0f);
 }

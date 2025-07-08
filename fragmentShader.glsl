@@ -9,9 +9,9 @@ in vec3 fragPosition;
 // Input uniform values
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
-uniform sampler2D roughness0;
+uniform sampler2D roughness;
 uniform float roughness1;
-uniform sampler2D metalic0;
+uniform sampler2D metalness;
 uniform float metalic1;
 uniform sampler2D shadow0;
 
@@ -60,12 +60,12 @@ vec3 F(vec3 F0, vec3 V, vec3 H)
 
 void main()
 {
-    vec3 ambient = ambientColor * .03f;
+    vec3 ambient = ambientColor * 0.03f;
 
-    vec4 textureMesh = max(texture(texture0,  fragTexCoord), 0.001);
-    float roughness  = max(texture(roughness0,fragTexCoord).x,0.01);
+    vec4 textureMesh = max(texture(texture0,  fragTexCoord), 0.01);
+    float roughness  = max(texture(roughness,fragTexCoord).x,0.01);
     if (roughness1 > 0) roughness = roughness1;
-    float metalic    = max(texture(metalic0,  fragTexCoord).x,0.01);
+    float metalic    = max(texture(metalness,  fragTexCoord).x,0.01);
     if (metalic1 > 0) metalic = metalic1;
 
     vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
@@ -105,7 +105,7 @@ void main()
     float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
     int shadowCounter = 0;
     int numSamples = 1;
-    vec2 texelSize = vec2(1.0/float(shadowMapResolution));
+    vec2 texelSize = vec2(1.0/float(shadowMapResolution*4));
     float sampleDepth = texture(shadow0, shadowUVCoord).r;
     int range = 1;
     for (int x = -range; x <= range; x++)
@@ -117,7 +117,11 @@ void main()
         }
     }
     vec3 result = outgoingLight;
-    result *= pow(sampleDepth/numSamples,2.0);
+    if(sampleDepth/numSamples < bias)
+    {
+        result *= 0;
+    }
+    //result *= pow(sampleDepth/numSamples,2.0);
     //result += ambient/2;
     //result = pow(result, vec3(1.0/2.2f));
     finalColor = vec4(result , textureMesh.a);
