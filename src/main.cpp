@@ -173,8 +173,13 @@ int main(int argc, char *argv[]) {
     game.madeLatteAmount = 0;
     game.madeLongCafeAmount = 0;
 
+    Material defaultMat = LoadMaterialDefault();
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
+    Model customersSpawnPoints = LoadModel("./Customers.glb");
+    for(int c = 0; c < game.customers.size(); ++c){
+        game.customers[c].mesh = &(customersSpawnPoints.meshes[c]);
+    }
 
     RenderTexture screenTexture = LoadRenderTexture(1280, 720);
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
@@ -206,7 +211,7 @@ int main(int argc, char *argv[]) {
             game.customersCooldown -= GetFrameTime();
             if (game.customersCooldown <= 0) {
                 game.customersCount++; // change this to spanCustomer();
-                for (auto cust : game.customers) {
+                for (auto &cust : game.customers) {
                     if (cust.active == false) {
                         cust.active = true;
                         cust.served = false;
@@ -221,6 +226,11 @@ int main(int argc, char *argv[]) {
         // shadowRender
         Matrix lightProj;
         Matrix lightView;
+        defaultMat.shader = shadowmapShader;
+        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu)
+        {
+            game.playerModel.materials[cu].shader = shadowmapShader;
+        }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (int anim_index = 0; anim_index < game.models[gO].animations.size(); ++anim_index) {
                 game.models[gO].animationsFrame += 1;
@@ -279,6 +289,14 @@ int main(int argc, char *argv[]) {
                     }
                     DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
+                DrawModelEx(game.playerModel, Vector3{0,0,0}, Vector3{0,0,0}, 0, Vector3{1,1,1}, WHITE);
+                for(size_t cu = 0; cu < game.customers.size(); ++cu)
+                {
+                    if (game.customers[cu].active)
+                    {
+                        DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
+                    }
+                }
             }
             EndMode3D();
         }
@@ -295,6 +313,11 @@ int main(int argc, char *argv[]) {
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
         // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
+        defaultMat.shader = shadowmapShader;
+        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu)
+        {
+            game.playerModel.materials[cu].shader = coolShader;
+        }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
                 game.models[gO].model.materials[ma].shader = coolShader;
@@ -309,6 +332,7 @@ int main(int argc, char *argv[]) {
 
             BeginMode3D(mainCam);
             {
+                DrawModelEx(game.playerModel, Vector3{0,0,0}, Vector3{0,0,0}, 0, Vector3{1,1,1}, WHITE);
                 for (size_t gO = 0; gO < game.models.size(); ++gO) {
                     game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] =
                         game.models[gO]
@@ -371,6 +395,13 @@ int main(int argc, char *argv[]) {
                         }
                         DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1},
                                     WHITE);
+                    }
+                }
+                for(size_t cu = 0; cu < game.customers.size(); ++cu)
+                {
+                    if (game.customers[cu].active)
+                    {
+                        DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
                     }
                 }
             }

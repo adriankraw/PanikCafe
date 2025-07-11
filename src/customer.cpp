@@ -1,5 +1,6 @@
 #pragma once
 
+#include "raylib.h"
 #include <string>
 #include <vector>
 
@@ -36,6 +37,7 @@ class Customer {
     Customer* GetFreeCustomer(std::vector<Customer> *_customer);
 
     bool active;
+    Mesh* mesh;
 
     std::string name;
     CustomerNeed_Main need_main;
