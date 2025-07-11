@@ -14,6 +14,22 @@
 #include <queue>
 #include <string>
 
+#include "game.cpp"
+#include "gameObject.cpp"
+#include "customer.cpp"
+
+void ReadInput(Camera &camera) {
+    float mouseWheel = GetMouseWheelMove();
+    camera.position += Vector3Scale(Vector3Normalize(camera.target - camera.position), mouseWheel / 10.0f);
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+        Vector2 mousePos = GetMouseDelta();
+        camera.position = Vector3RotateByAxisAngle(camera.position, Vector3{0.0f, 1.0f, 0.0f}, -mousePos.x / 100.0f);
+        camera.position = Vector3RotateByAxisAngle(
+            camera.position, Vector3CrossProduct(camera.target - camera.position, camera.up), -mousePos.y / 100.0f);
+    }
+}
+
 void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     if (IsKeyDown(KEY_A)) {
         lightPosition->x += -5 * GetFrameTime();
@@ -42,109 +58,9 @@ struct light {
     Vector3 Color{23.47f, 21.31f, 20.79f};
 };
 
-class GameObject {
-  public:
-    GameObject() {};
-    GameObject(GameObject &&) = default;
-    GameObject(const GameObject &) = default;
-    GameObject &operator=(GameObject &&) = default;
-    GameObject &operator=(const GameObject &) = default;
-    ~GameObject() {};
-    GameObject(std::string _name, Model _model, Vector3 _translation, Vector3 _rotation, Vector3 _scaling) {
-        name = _name;
-        model = _model;
-        translation = _translation;
-        rotation = _rotation;
-        scaling = _scaling;
-        animationCurrent = 0;
-    }
 
-    std::string name;
-    Model model;
-    Vector3 translation;
-    Vector3 rotation;
-    Vector3 scaling;
-    std::vector<ModelAnimation> animations;
-    float animationsFrame;
-    int animationCurrent;
-};
-enum CustomerNeed_Main {
-    Main_None = 0,
-    Espresso,
-    Late,
-    Long,
-};
-enum CustomerNeed_Sup {
-    Sup_None = 0,
-    Cow,
-    Oat,
-};
-class Customer {
-  public:
-    Customer() {
-        active = false;
-        name = "customer";
-        need_main = CustomerNeed_Main::Espresso;
-        need_main_Count = 1;
-        need_sup_Count = CustomerNeed_Sup::Sup_None;
-        need_sup_Count = 0;
-        served = 0;
-        stressBringer = 1;
-    };
-    Customer(Customer &&) = default;
-    Customer(const Customer &) = default;
-    Customer &operator=(Customer &&) = default;
-    Customer &operator=(const Customer &) = default;
-    ~Customer() {};
 
-    bool active;
 
-    std::string name;
-    CustomerNeed_Main need_main;
-    int need_main_Count;
-    CustomerNeed_Sup need_sup;
-    int need_sup_Count;
-    bool served;
-    float stressBringer;
-};
-Customer* GetFreeCustomer(std::vector<Customer>* _customer)
-{
-    for(size_t c = 0; c < _customer->size(); ++c)
-    {
-        if(_customer->at(c).active == false)
-        {
-            return &(_customer->at(c)); 
-            break;
-        }
-    }
-    return nullptr;
-}
-
-struct Game {
-    std::string playerName;
-    int playerAge;
-    float playerActionValue;
-    bool playerActionStarted;
-    std::queue<std::function<void()>> playerAction;
-
-    std::vector<GameObject> models;
-
-    std::vector<Customer> customers;
-    int customersCount;
-    int customersMax;
-    float stressLevel;
-    float customersCooldown;
-    float customersCooldownMax;
-    int smallCupsAmount;
-    int bigCupsAmount;
-    int beansAmount;
-    int grindedBeansAmount;
-    int cowMilkAmount;
-    int oatMilkAmount;
-    int madeEspressoAmount;
-    int madeLatteAmount;
-    int madeLongCafeAmount;
-};
 
 RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     RenderTexture2D target = {0};
@@ -203,18 +119,7 @@ void ImportModelWithAnimations(Game *game, std::string path) {
     }
 }
 
-void increaseBeanCount(Game *_game) { _game->beansAmount++; }
-void grindBeans(Game *_game) {
-    _game->grindedBeansAmount++;
-    _game->beansAmount--;
-}
-void increaseSmallCups(Game *_game) { _game->smallCupsAmount++; }
-void increaseBigCups(Game *_game) { _game->bigCupsAmount++; }
-void increaseCowMilkCount(Game *_game) { _game->cowMilkAmount++; }
-void increaseOatMilkCount(Game *_game) { _game->oatMilkAmount++; }
-void increaseEspressoAmount(Game *_game) { _game->madeEspressoAmount++; }
-void increaseLatteAmount(Game *_game) { _game->madeLatteAmount++; }
-void increaseLongCafeAmount(Game *_game) { _game->madeLongCafeAmount++; }
+
 
 int main(int argc, char *argv[]) {
 
@@ -250,6 +155,8 @@ int main(int argc, char *argv[]) {
     game.playerAge = 28;
     game.playerActionValue = 0.0f;
     game.playerActionStarted = false;
+    game.playerModel = LoadModel("./KitFox.glb");
+
     game.models = std::vector<GameObject>();
     game.customers = std::vector<Customer>(10);
     game.customersCount = 0;
@@ -258,7 +165,7 @@ int main(int argc, char *argv[]) {
     game.customersCooldownMax = 60;
     game.smallCupsAmount = 10;
     game.bigCupsAmount = 10;
-    game.beansAmount = 10;
+    game.beansAmount = 30;
     game.grindedBeansAmount = 0;
     game.cowMilkAmount = 0;
     game.oatMilkAmount = 0;
@@ -292,7 +199,9 @@ int main(int argc, char *argv[]) {
 
     while (!WindowShouldClose()) {
         game.customersCooldown -= GetFrameTime();
-        ReadInput(&lightPosition, coolShader);
+        ReadInput(&lightPosition, coolShader); // light movement WASD
+        ReadInput(mainCam); // camera movement
+
         if (game.customersCount < game.customersMax) {
             game.customersCooldown -= GetFrameTime();
             if (game.customersCooldown <= 0) {
@@ -464,7 +373,6 @@ int main(int argc, char *argv[]) {
                                     WHITE);
                     }
                 }
-                // DrawModel(sphere, objPosition, 1.0f, RAYWHITE);
             }
             // Draw lightSphere
             DrawSphere(lightPosition, 0.2f, BLUE);
@@ -499,7 +407,7 @@ int main(int argc, char *argv[]) {
             Rectangle labelRect{150, 100, 100, 25};
             if (GuiButton(buttonRect, "get Beans")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseBeanCount(&game); });
+                    game.playerAction.push([&game]() { game.increaseBeanCount(); });
                     game.playerActionStarted = true;
                 }
             }
@@ -508,7 +416,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "grind beans")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { grindBeans(&game); });
+                    game.playerAction.push([&game]() { game.grindBeans(); });
                     game.playerActionStarted = true;
                     printf("grind beans \n");
                 }
@@ -518,7 +426,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 50;
             if (GuiButton(buttonRect, "Small Cups")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseSmallCups(&game); });
+                    game.playerAction.push([&game]() { game.increaseSmallCups(); });
                     game.playerActionStarted = true;
                     printf("get small cups \n");
                 }
@@ -528,7 +436,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "Large Cups")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseBigCups(&game); });
+                    game.playerAction.push([&game]() { game.increaseBigCups(); });
                     game.playerActionStarted = true;
                     printf("Large Cups \n");
                 }
@@ -538,7 +446,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "cow Milk")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseCowMilkCount(&game); });
+                    game.playerAction.push([&game]() { game.increaseCowMilkCount(); });
                     game.playerActionStarted = true;
                     printf("get cow Milk \n");
                 }
@@ -548,7 +456,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "oat Milk")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseOatMilkCount(&game); });
+                    game.playerAction.push([&game]() { game.increaseOatMilkCount(); });
                     game.playerActionStarted = true;
                     printf("get oat Milk \n");
                 }
@@ -558,7 +466,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 50;
             if (GuiButton(buttonRect, "Espresso")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseEspressoAmount(&game); });
+                    game.playerAction.push([&game]() { game.increaseEspressoAmount(); });
                     game.playerActionStarted = true;
                     printf("do Espresso \n");
                 }
@@ -568,7 +476,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "Latte")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseLatteAmount(&game); });
+                    game.playerAction.push([&game]() { game.increaseLatteAmount(); });
                     game.playerActionStarted = true;
                     printf("do Latte \n");
                 }
@@ -578,7 +486,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "LongCafe")) {
                 if (game.playerActionStarted == false) {
-                    game.playerAction.push([&game]() { increaseLongCafeAmount(&game); });
+                    game.playerAction.push([&game]() { game.increaseLongCafeAmount(); });
                     game.playerActionStarted = true;
                     printf("do LongCafe \n");
                 }
@@ -586,11 +494,10 @@ int main(int argc, char *argv[]) {
             GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
             buttonRect.y += 60;
             labelRect.y += 60;
-            if (GuiButton(buttonRect, "serve"))
-            {
+            if (GuiButton(buttonRect, "serve")) {
                 printf("serving .... not inplemented\n");
             }
-            GuiLabel(labelRect, GetFreeCustomer(&game.customers)->name.c_str());
+            GuiLabel(labelRect, game.GetFreeCustomer()->name.c_str());
 
             if (game.playerActionStarted) {
                 game.playerActionValue += GetFrameTime();
@@ -618,7 +525,7 @@ int main(int argc, char *argv[]) {
     rlUnloadFramebuffer(shadowTexture.id);
     UnloadShader(coolShader);
     UnloadShader(shadowmapShader);
-
+    UnloadModel(game.playerModel);
     for (size_t gO = 0; gO < game.models.size(); ++gO) {
         UnloadModel(game.models[gO].model);
     }
