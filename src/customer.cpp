@@ -20,6 +20,7 @@ class Customer {
   public:
     Customer() {
         active = false;
+        clicked = false;
         name = "customer";
         need_main = CustomerNeed_Main::Espresso;
         need_main_Count = 1;
@@ -37,6 +38,7 @@ class Customer {
     Customer* GetFreeCustomer(std::vector<Customer> *_customer);
 
     bool active;
+    bool clicked;
     Mesh* mesh;
 
     std::string name;

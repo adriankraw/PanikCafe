@@ -3,6 +3,7 @@
 #include "rlgl.h"
 #include <cstdio>
 #include <filesystem>
+#include <list>
 #include <vector>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
@@ -14,9 +15,9 @@
 #include <queue>
 #include <string>
 
+#include "customer.cpp"
 #include "game.cpp"
 #include "gameObject.cpp"
-#include "customer.cpp"
 
 void ReadInput(Camera &camera) {
     float mouseWheel = GetMouseWheelMove();
@@ -57,10 +58,6 @@ struct light {
     Vector3 direction;
     Vector3 Color{23.47f, 21.31f, 20.79f};
 };
-
-
-
-
 
 RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     RenderTexture2D target = {0};
@@ -119,8 +116,6 @@ void ImportModelWithAnimations(Game *game, std::string path) {
     }
 }
 
-
-
 int main(int argc, char *argv[]) {
 
     InitWindow(1280, 720, "CodingProject");
@@ -177,7 +172,7 @@ int main(int argc, char *argv[]) {
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
     Model customersSpawnPoints = LoadModel("./Customers.glb");
-    for(int c = 0; c < game.customers.size(); ++c){
+    for (int c = 0; c < game.customers.size(); ++c) {
         game.customers[c].mesh = &(customersSpawnPoints.meshes[c]);
     }
 
@@ -200,12 +195,14 @@ int main(int argc, char *argv[]) {
     Texture2D colorMap = LoadTexture("./texture/colorMap.png");
 
     SetTraceLogLevel(LOG_WARNING);
-    // Load GameStruct
+
+    Ray ray = {0};
+    RayCollision collision = {0};
 
     while (!WindowShouldClose()) {
         game.customersCooldown -= GetFrameTime();
         ReadInput(&lightPosition, coolShader); // light movement WASD
-        ReadInput(mainCam); // camera movement
+        ReadInput(mainCam);                    // camera movement
 
         if (game.customersCount < game.customersMax) {
             game.customersCooldown -= GetFrameTime();
@@ -227,8 +224,7 @@ int main(int argc, char *argv[]) {
         Matrix lightProj;
         Matrix lightView;
         defaultMat.shader = shadowmapShader;
-        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu)
-        {
+        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu) {
             game.playerModel.materials[cu].shader = shadowmapShader;
         }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
@@ -289,11 +285,10 @@ int main(int argc, char *argv[]) {
                     }
                     DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
-                DrawModelEx(game.playerModel, Vector3{0,0,0}, Vector3{0,0,0}, 0, Vector3{1,1,1}, WHITE);
-                for(size_t cu = 0; cu < game.customers.size(); ++cu)
-                {
-                    if (game.customers[cu].active)
-                    {
+                DrawModelEx(game.playerModel, Vector3{0, 0, 0}, Vector3{0, 0, 0}, 0, Vector3{1, 1, 1}, WHITE);
+                for (size_t cu = 0; cu < game.customers.size(); ++cu) {
+                    if (game.customers[cu].active) {
+                        float clicked = game.customers[cu].clicked?1:0;
                         DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
                     }
                 }
@@ -313,9 +308,8 @@ int main(int argc, char *argv[]) {
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
         // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
-        defaultMat.shader = shadowmapShader;
-        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu)
-        {
+        defaultMat.shader = coolShader;
+        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu) {
             game.playerModel.materials[cu].shader = coolShader;
         }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
@@ -332,7 +326,7 @@ int main(int argc, char *argv[]) {
 
             BeginMode3D(mainCam);
             {
-                DrawModelEx(game.playerModel, Vector3{0,0,0}, Vector3{0,0,0}, 0, Vector3{1,1,1}, WHITE);
+                DrawModelEx(game.playerModel, Vector3{0, 0, 0}, Vector3{0, 0, 0}, 0, Vector3{1, 1, 1}, WHITE);
                 for (size_t gO = 0; gO < game.models.size(); ++gO) {
                     game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] =
                         game.models[gO]
@@ -397,19 +391,53 @@ int main(int argc, char *argv[]) {
                                     WHITE);
                     }
                 }
-                for(size_t cu = 0; cu < game.customers.size(); ++cu)
-                {
-                    if (game.customers[cu].active)
-                    {
+                float clicked = 0;
+                for (size_t cu = 0; cu < game.customers.size(); ++cu) {
+                    if (game.customers[cu].active) {
+                        clicked = game.customers[cu].clicked?1:0;
+                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked, SHADER_UNIFORM_FLOAT);
                         DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
                     }
                 }
+                clicked = 0;
+                SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked, SHADER_UNIFORM_FLOAT);
             }
             // Draw lightSphere
             DrawSphere(lightPosition, 0.2f, BLUE);
             EndMode3D();
         }
         EndTextureMode();
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (!collision.hit || true) {
+                std::list<int> clickedLastFrame;
+                int clickedThisFrame;
+                ray = GetScreenToWorldRay(GetMousePosition(), mainCam);
+                for (size_t cu = 0; cu < game.customers.size(); ++cu) {
+                    if (game.customers[cu].active) {
+                        if (game.customers[cu].clicked)
+                        {
+                            clickedLastFrame.push_back(cu);
+                        }
+                        collision = GetRayCollisionMesh(ray, *game.customers[cu].mesh, customersSpawnPoints.transform);
+                        if(collision.hit){
+                            game.customers[cu].clicked = true;
+                            clickedThisFrame = cu;
+                        }
+                    }
+                }
+                if(clickedLastFrame.size() > 0)
+                {
+                    for (int cu: clickedLastFrame)
+                    {
+                        if (cu != clickedThisFrame)
+                        {
+                            game.customers[cu].clicked = false;
+                        }
+                    }
+                }
+            }
+        }
 
         // screentexture
         BeginDrawing();
@@ -557,6 +585,7 @@ int main(int argc, char *argv[]) {
     UnloadShader(coolShader);
     UnloadShader(shadowmapShader);
     UnloadModel(game.playerModel);
+    UnloadModel(customersSpawnPoints);
     for (size_t gO = 0; gO < game.models.size(); ++gO) {
         UnloadModel(game.models[gO].model);
     }
