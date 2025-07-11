@@ -21,6 +21,7 @@ uniform vec3 viewDir;
 uniform vec3 lightPos;
 uniform float shadowMapResolution;
 uniform mat4 lightViewProj;
+uniform float selected;
 
 // Output fragment color
 out vec4 finalColor;
@@ -60,6 +61,11 @@ vec3 F(vec3 F0, vec3 V, vec3 H)
 
 void main()
 {
+    if (selected == 1)
+    {
+        finalColor = vec4(vec3(1, 0, 0) ,1.0f );
+        return;
+    }
     vec3 ambient = ambientColor * 0.03f;
 
     vec4 textureMesh = max(texture(texture0,  fragTexCoord), 0.01);
