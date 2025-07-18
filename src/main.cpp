@@ -156,8 +156,8 @@ int main(int argc, char *argv[]) {
     game.customers = std::vector<Customer>(10);
     game.customersCount = 0;
     game.customersMax = 10;
-    game.customersCooldown = 60;
-    game.customersCooldownMax = 60;
+    game.customersCooldown = 10;
+    game.customersCooldownMax = 30;
     game.smallCupsAmount = 10;
     game.bigCupsAmount = 10;
     game.beansAmount = 30;
@@ -212,6 +212,10 @@ int main(int argc, char *argv[]) {
                     if (cust.active == false) {
                         cust.active = true;
                         cust.served = false;
+                        cust.need_main = CustomerNeed_Main::Espresso;
+                        cust.need_main_Count = 1;
+                        cust.need_sup = CustomerNeed_Sup::Sup_None;
+                        cust.need_sup_Count = 0;
                         printf(">> customer entered the room -- Customers %i\n", game.customersCount);
                         break;
                     }
@@ -288,7 +292,7 @@ int main(int argc, char *argv[]) {
                 DrawModelEx(game.playerModel, Vector3{0, 0, 0}, Vector3{0, 0, 0}, 0, Vector3{1, 1, 1}, WHITE);
                 for (size_t cu = 0; cu < game.customers.size(); ++cu) {
                     if (game.customers[cu].active) {
-                        float clicked = game.customers[cu].clicked?1:0;
+                        float clicked = game.customers[cu].clicked ? 1 : 0;
                         DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
                     }
                 }
@@ -394,8 +398,9 @@ int main(int argc, char *argv[]) {
                 float clicked = 0;
                 for (size_t cu = 0; cu < game.customers.size(); ++cu) {
                     if (game.customers[cu].active) {
-                        clicked = game.customers[cu].clicked?1:0;
-                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked, SHADER_UNIFORM_FLOAT);
+                        clicked = game.customers[cu].clicked ? 1 : 0;
+                        SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked,
+                                       SHADER_UNIFORM_FLOAT);
                         DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
                     }
                 }
@@ -407,7 +412,8 @@ int main(int argc, char *argv[]) {
             EndMode3D();
         }
         EndTextureMode();
-
+        
+        //Raycast Mouseclick on customers
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (!collision.hit || true) {
                 std::list<int> clickedLastFrame;
@@ -415,23 +421,20 @@ int main(int argc, char *argv[]) {
                 ray = GetScreenToWorldRay(GetMousePosition(), mainCam);
                 for (size_t cu = 0; cu < game.customers.size(); ++cu) {
                     if (game.customers[cu].active) {
-                        if (game.customers[cu].clicked)
-                        {
+                        if (game.customers[cu].clicked) {
                             clickedLastFrame.push_back(cu);
                         }
                         collision = GetRayCollisionMesh(ray, *game.customers[cu].mesh, customersSpawnPoints.transform);
-                        if(collision.hit){
+                        if (collision.hit) {
                             game.customers[cu].clicked = true;
                             clickedThisFrame = cu;
+                            game.selectedCustomer = &game.customers[cu];
                         }
                     }
                 }
-                if(clickedLastFrame.size() > 0)
-                {
-                    for (int cu: clickedLastFrame)
-                    {
-                        if (cu != clickedThisFrame)
-                        {
+                if (clickedLastFrame.size() > 0) {
+                    for (int cu : clickedLastFrame) {
+                        if (cu != clickedThisFrame) {
                             game.customers[cu].clicked = false;
                         }
                     }
@@ -477,7 +480,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.grindBeans(); });
                     game.playerActionStarted = true;
-                    printf("grind beans \n");
                 }
             }
             GuiLabel(labelRect, std::string("Grind. beans: ").append(std::to_string(game.grindedBeansAmount)).c_str());
@@ -487,7 +489,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseSmallCups(); });
                     game.playerActionStarted = true;
-                    printf("get small cups \n");
                 }
             }
             GuiLabel(labelRect, std::string("Small Cups: ").append(std::to_string(game.smallCupsAmount)).c_str());
@@ -497,7 +498,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseBigCups(); });
                     game.playerActionStarted = true;
-                    printf("Large Cups \n");
                 }
             }
             GuiLabel(labelRect, std::string("Large Cups: ").append(std::to_string(game.bigCupsAmount)).c_str());
@@ -507,7 +507,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseCowMilkCount(); });
                     game.playerActionStarted = true;
-                    printf("get cow Milk \n");
                 }
             }
             GuiLabel(labelRect, std::string("Cow Milk: ").append(std::to_string(game.cowMilkAmount)).c_str());
@@ -517,7 +516,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseOatMilkCount(); });
                     game.playerActionStarted = true;
-                    printf("get oat Milk \n");
                 }
             }
             GuiLabel(labelRect, std::string("Oat Milk: ").append(std::to_string(game.oatMilkAmount)).c_str());
@@ -527,7 +525,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseEspressoAmount(); });
                     game.playerActionStarted = true;
-                    printf("do Espresso \n");
                 }
             }
             GuiLabel(labelRect, std::string("Espresso: ").append(std::to_string(game.madeEspressoAmount)).c_str());
@@ -537,7 +534,6 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseLatteAmount(); });
                     game.playerActionStarted = true;
-                    printf("do Latte \n");
                 }
             }
             GuiLabel(labelRect, std::string("Late: ").append(std::to_string(game.madeLatteAmount)).c_str());
@@ -547,16 +543,23 @@ int main(int argc, char *argv[]) {
                 if (game.playerActionStarted == false) {
                     game.playerAction.push([&game]() { game.increaseLongCafeAmount(); });
                     game.playerActionStarted = true;
-                    printf("do LongCafe \n");
                 }
             }
             GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game.madeLongCafeAmount)).c_str());
             buttonRect.y += 60;
             labelRect.y += 60;
             if (GuiButton(buttonRect, "serve")) {
-                printf("serving .... not inplemented\n");
+                if (game.selectedCustomer != nullptr) {
+                    game.serveCustomer(game.selectedCustomer);
+                    if (game.checkCustomer(game.selectedCustomer)) {
+                        game.selectedCustomer->served = true;
+                        game.selectedCustomer->active = false;
+                        game.selectedCustomer->clicked = false;
+                        game.customersCount--;
+                    }
+                }
             }
-            GuiLabel(labelRect, game.GetFreeCustomer()->name.c_str());
+            GuiLabel(labelRect, game.GetFreeCustomer() != nullptr ? game.GetFreeCustomer()->name.c_str(): "");
 
             if (game.playerActionStarted) {
                 game.playerActionValue += GetFrameTime();
@@ -578,6 +581,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             DrawText(timebuffer, 5, 5, 48, BLACK);
+            DrawText(std::to_string((int)(1.0f/GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48, BLACK);
         }
         EndDrawing();
     }

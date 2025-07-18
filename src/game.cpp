@@ -18,6 +18,8 @@ class Game {
     ~Game();
 
     Customer *GetFreeCustomer();
+    void serveCustomer(Customer *);
+    bool checkCustomer(Customer *);
     void increaseBeanCount();
     void grindBeans();
     void increaseSmallCups();
@@ -38,6 +40,7 @@ class Game {
     std::vector<GameObject> models;
 
     std::vector<Customer> customers;
+    Customer *selectedCustomer;
     int customersCount;
     int customersMax;
     float stressLevel;
@@ -88,4 +91,50 @@ void Game::increaseLatteAmount() {
 void Game::increaseLongCafeAmount() {
     madeLongCafeAmount++;
     grindedBeansAmount -= 30;
+}
+void Game::serveCustomer(Customer *cu) {
+    switch (cu->need_main) {
+    case CustomerNeed_Main::Espresso: {
+        while (cu->need_main_Count > 0 && madeEspressoAmount > 0) {
+            cu->need_main_Count--;
+            madeEspressoAmount--;
+        }
+    } break;
+    case CustomerNeed_Main::Late: {
+        while (cu->need_main_Count > 0 && madeLatteAmount > 0) {
+            cu->need_main_Count--;
+            madeLatteAmount--;
+        }
+    } break;
+    case CustomerNeed_Main::Long: {
+        while (cu->need_main_Count > 0 && madeLongCafeAmount > 0) {
+            cu->need_main_Count--;
+            madeLongCafeAmount--;
+        }
+    } break;
+    case CustomerNeed_Main::Main_None: {
+    } break;
+    }
+    switch (cu->need_sup) {
+    case CustomerNeed_Sup::Cow: {
+        while (cu->need_sup_Count > 0 && cowMilkAmount > 0) {
+            cu->need_sup_Count--;
+            cowMilkAmount--;
+        }
+    } break;
+    case CustomerNeed_Sup::Oat: {
+        while (cu->need_sup_Count > 0 && oatMilkAmount > 0) {
+            cu->need_sup_Count--;
+            oatMilkAmount--;
+        }
+    } break;
+    case CustomerNeed_Sup::Sup_None: {
+    } break;
+    }
+}
+bool Game::checkCustomer(Customer *cu) {
+    if (cu->need_main_Count == 0 && cu->need_sup_Count == 0) {
+        return true;
+    }
+    return false;
 }
