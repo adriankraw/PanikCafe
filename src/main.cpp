@@ -132,7 +132,6 @@ int main(int argc, char *argv[]) {
     mainCam.projection = CAMERA_PERSPECTIVE;
 
     rlDisableBackfaceCulling();
-    // rlDisableDepthMask();
     rlEnableDepthTest();
     SetTargetFPS(60);
 
@@ -146,27 +145,6 @@ int main(int argc, char *argv[]) {
     float time = 0;
 
     Game game = Game();
-    game.playerName = "olantern";
-    game.playerAge = 28;
-    game.playerActionValue = 0.0f;
-    game.playerActionStarted = false;
-    game.playerModel = LoadModel("./KitFox.glb");
-
-    game.models = std::vector<GameObject>();
-    game.customers = std::vector<Customer>(10);
-    game.customersCount = 0;
-    game.customersMax = 10;
-    game.customersCooldown = 10;
-    game.customersCooldownMax = 30;
-    game.smallCupsAmount = 10;
-    game.bigCupsAmount = 10;
-    game.beansAmount = 30;
-    game.grindedBeansAmount = 0;
-    game.cowMilkAmount = 0;
-    game.oatMilkAmount = 0;
-    game.madeEspressoAmount = 0;
-    game.madeLatteAmount = 0;
-    game.madeLongCafeAmount = 0;
 
     Material defaultMat = LoadMaterialDefault();
     ImportModelWithAnimations(&game, "./CafeBar.glb");
@@ -454,7 +432,6 @@ int main(int argc, char *argv[]) {
                     screenTexture.texture,
                     Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                     Vector2{0, 0}, WHITE);
-                // DrawTexture(shadowTexture.texture, 0, 0, wHITE);
             }
             EndShaderMode();
 
@@ -469,6 +446,7 @@ int main(int argc, char *argv[]) {
             Rectangle labelRect{150, 100, 100, 25};
             if (GuiButton(buttonRect, "get Beans")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 1.0f;
                     game.playerAction.push([&game]() { game.increaseBeanCount(); });
                     game.playerActionStarted = true;
                 }
@@ -478,6 +456,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "grind beans")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 1.0f;
                     game.playerAction.push([&game]() { game.grindBeans(); });
                     game.playerActionStarted = true;
                 }
@@ -487,6 +466,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 50;
             if (GuiButton(buttonRect, "Small Cups")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 2.0f;
                     game.playerAction.push([&game]() { game.increaseSmallCups(); });
                     game.playerActionStarted = true;
                 }
@@ -496,6 +476,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "Large Cups")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 2.0f;
                     game.playerAction.push([&game]() { game.increaseBigCups(); });
                     game.playerActionStarted = true;
                 }
@@ -505,6 +486,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "cow Milk")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 2.0f;
                     game.playerAction.push([&game]() { game.increaseCowMilkCount(); });
                     game.playerActionStarted = true;
                 }
@@ -514,6 +496,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "oat Milk")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 2.0f;
                     game.playerAction.push([&game]() { game.increaseOatMilkCount(); });
                     game.playerActionStarted = true;
                 }
@@ -523,6 +506,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 50;
             if (GuiButton(buttonRect, "Espresso")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 32.0f;
                     game.playerAction.push([&game]() { game.increaseEspressoAmount(); });
                     game.playerActionStarted = true;
                 }
@@ -532,6 +516,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "Latte")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 40.0f;
                     game.playerAction.push([&game]() { game.increaseLatteAmount(); });
                     game.playerActionStarted = true;
                 }
@@ -541,6 +526,7 @@ int main(int argc, char *argv[]) {
             labelRect.y += 30;
             if (GuiButton(buttonRect, "LongCafe")) {
                 if (game.playerActionStarted == false) {
+                    game.playerActionDuration = 50.0f;
                     game.playerAction.push([&game]() { game.increaseLongCafeAmount(); });
                     game.playerActionStarted = true;
                 }
@@ -565,10 +551,12 @@ int main(int argc, char *argv[]) {
                 game.playerActionValue += GetFrameTime();
                 float actionBarWidth = 500.0f;
                 float actionBarHeight = 50.0f;
+                float actionBarStartValue = 0;
+                float actionBarEndValue = game.playerActionDuration;
                 GuiProgressBar(Rectangle{(screenTexture.texture.width - actionBarWidth) / 2,
                                          screenTexture.texture.height - 50.0f, actionBarWidth, actionBarHeight},
-                               "", "", &game.playerActionValue, 0, 1);
-                if (game.playerActionValue == 1) {
+                               "", std::to_string(game.playerActionDuration).c_str(), &game.playerActionValue, actionBarStartValue, actionBarEndValue);
+                if (game.playerActionValue == actionBarEndValue) {
                     if (!game.playerAction.empty()) {
                         std::function<void()> action = game.playerAction.front();
                         action();

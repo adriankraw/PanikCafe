@@ -33,6 +33,7 @@ class Game {
     std::string playerName;
     int playerAge;
     float playerActionValue;
+    float playerActionDuration; //will need a getter. Dont change the duraction if action is running;
     bool playerActionStarted;
     Model playerModel;
     std::queue<std::function<void()>> playerAction;
@@ -57,7 +58,30 @@ class Game {
     int madeLongCafeAmount;
 };
 
-Game::Game() {}
+Game::Game() {
+    playerName = "olantern";
+    playerAge = 28;
+    playerActionValue = 0.0f;
+    playerActionDuration = 1.0f;
+    playerActionStarted = false;
+    playerModel = LoadModel("./KitFox.glb");
+
+    models = std::vector<GameObject>();
+    customers = std::vector<Customer>(10);
+    customersCount = 0;
+    customersMax = 10;
+    customersCooldown = 10;
+    customersCooldownMax = 30;
+    smallCupsAmount = 10;
+    bigCupsAmount = 10;
+    beansAmount = 30;
+    grindedBeansAmount = 0;
+    cowMilkAmount = 0;
+    oatMilkAmount = 0;
+    madeEspressoAmount = 0;
+    madeLatteAmount = 0;
+    madeLongCafeAmount = 0;
+}
 
 Game::~Game() {}
 
