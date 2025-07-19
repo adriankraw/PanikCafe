@@ -96,7 +96,7 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     return target;
 }
 
-void ImportModelWithAnimations(Game *game, std::string path) {
+Model* ImportModelWithAnimations(Game *game, std::string path) {
     Model modelTarget = LoadModel(path.c_str());
     game->models.emplace_back(GameObject("", modelTarget, Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{1, 1, 1}));
 
@@ -114,6 +114,7 @@ void ImportModelWithAnimations(Game *game, std::string path) {
             std::printf("(%f %f %f)\n", pose.x, pose.y, pose.z);
         }
     }
+    return &(game->models.back().model);
 }
 
 int main(int argc, char *argv[]) {
@@ -149,6 +150,9 @@ int main(int argc, char *argv[]) {
     Material defaultMat = LoadMaterialDefault();
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
+    game.playerModel = ImportModelWithAnimations(&game, "./KitFox.glb");
+
+
     Model customersSpawnPoints = LoadModel("./Customers.glb");
     for (int c = 0; c < game.customers.size(); ++c) {
         game.customers[c].mesh = &(customersSpawnPoints.meshes[c]);
@@ -206,8 +210,8 @@ int main(int argc, char *argv[]) {
         Matrix lightProj;
         Matrix lightView;
         defaultMat.shader = shadowmapShader;
-        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu) {
-            game.playerModel.materials[cu].shader = shadowmapShader;
+        for (size_t cu = 0; cu < game.playerModel->materialCount; ++cu) {
+            game.playerModel->materials[cu].shader = shadowmapShader;
         }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (int anim_index = 0; anim_index < game.models[gO].animations.size(); ++anim_index) {
@@ -267,7 +271,6 @@ int main(int argc, char *argv[]) {
                     }
                     DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
-                DrawModelEx(game.playerModel, Vector3{0, 0, 0}, Vector3{0, 0, 0}, 0, Vector3{1, 1, 1}, WHITE);
                 for (size_t cu = 0; cu < game.customers.size(); ++cu) {
                     if (game.customers[cu].active) {
                         float clicked = game.customers[cu].clicked ? 1 : 0;
@@ -291,8 +294,8 @@ int main(int argc, char *argv[]) {
         // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
         defaultMat.shader = coolShader;
-        for (size_t cu = 0; cu < game.playerModel.materialCount; ++cu) {
-            game.playerModel.materials[cu].shader = coolShader;
+        for (size_t cu = 0; cu < game.playerModel->materialCount; ++cu) {
+            game.playerModel->materials[cu].shader = coolShader;
         }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
@@ -308,7 +311,6 @@ int main(int argc, char *argv[]) {
 
             BeginMode3D(mainCam);
             {
-                DrawModelEx(game.playerModel, Vector3{0, 0, 0}, Vector3{0, 0, 0}, 0, Vector3{1, 1, 1}, WHITE);
                 for (size_t gO = 0; gO < game.models.size(); ++gO) {
                     game.models[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] =
                         game.models[gO]
@@ -576,7 +578,6 @@ int main(int argc, char *argv[]) {
     rlUnloadFramebuffer(shadowTexture.id);
     UnloadShader(coolShader);
     UnloadShader(shadowmapShader);
-    UnloadModel(game.playerModel);
     UnloadModel(customersSpawnPoints);
     for (size_t gO = 0; gO < game.models.size(); ++gO) {
         UnloadModel(game.models[gO].model);
