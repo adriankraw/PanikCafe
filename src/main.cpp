@@ -106,6 +106,9 @@ Model* ImportModelWithAnimations(Game *game, std::string path) {
     std::printf(">> %i animations found \n", animCount);
     for (int i = 0; i < animCount; ++i) {
         auto animations = modelAnimations[i];
+
+        if(animations.frameCount<=1) continue; // dont care about animations containing only 1 frame ...
+
         game->models.back().animations.emplace_back(modelAnimations[i]);
         std::printf("animation %i loaded\n", i);
         for (int f = 0; f < animations.frameCount; ++f) {
@@ -182,7 +185,6 @@ int main(int argc, char *argv[]) {
     RayCollision collision = {0};
 
     while (!WindowShouldClose()) {
-        game.customersCooldown -= GetFrameTime();
         ReadInput(&lightPosition, coolShader); // light movement WASD
         ReadInput(mainCam);                    // camera movement
 
@@ -210,9 +212,6 @@ int main(int argc, char *argv[]) {
         Matrix lightProj;
         Matrix lightView;
         defaultMat.shader = shadowmapShader;
-        for (size_t cu = 0; cu < game.playerModel->materialCount; ++cu) {
-            game.playerModel->materials[cu].shader = shadowmapShader;
-        }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (int anim_index = 0; anim_index < game.models[gO].animations.size(); ++anim_index) {
                 game.models[gO].animationsFrame += 1;
@@ -294,9 +293,6 @@ int main(int argc, char *argv[]) {
         // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
         defaultMat.shader = coolShader;
-        for (size_t cu = 0; cu < game.playerModel->materialCount; ++cu) {
-            game.playerModel->materials[cu].shader = coolShader;
-        }
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
             for (size_t ma = 0; ma < game.models[gO].model.materialCount; ++ma) {
                 game.models[gO].model.materials[ma].shader = coolShader;

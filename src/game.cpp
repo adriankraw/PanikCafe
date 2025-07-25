@@ -68,15 +68,15 @@ Game::Game() {
     customers = std::vector<Customer>(10);
     customersCount = 0;
     customersMax = 10;
-    customersCooldown = 10;
-    customersCooldownMax = 30;
+    customersCooldown = 5;
+    customersCooldownMax = 5;
     smallCupsAmount = 10;
     bigCupsAmount = 10;
     beansAmount = 30;
     grindedBeansAmount = 0;
     cowMilkAmount = 0;
     oatMilkAmount = 0;
-    madeEspressoAmount = 0;
+    madeEspressoAmount = 20;
     madeLatteAmount = 0;
     madeLongCafeAmount = 0;
 }
