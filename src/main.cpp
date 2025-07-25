@@ -196,11 +196,9 @@ int main(int argc, char *argv[]) {
                     if (cust.active == false) {
                         cust.active = true;
                         cust.served = false;
-                        cust.need_main = CustomerNeed_Main::Espresso;
-                        cust.need_main_Count = 1;
-                        cust.need_sup = CustomerNeed_Sup::Sup_None;
-                        cust.need_sup_Count = 0;
+                        game.SetupCustomer(&cust);
                         printf(">> customer entered the room -- Customers %i\n", game.customersCount);
+                        std::cout << "^--" << Enum_to_string(&cust.need_main) << " with " << Enum_to_string(&cust.need_sup) << "\n";
                         break;
                     }
                 }

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "raylib.h"
+#include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 enum CustomerNeed_Main {
@@ -10,11 +12,30 @@ enum CustomerNeed_Main {
     Late,
     Long,
 };
+std::map<CustomerNeed_Main, std::string_view> CustomerNeed_MainMap = {
+    {CustomerNeed_Main::Espresso, "Espresso"},
+    {CustomerNeed_Main::Late, "Late"},
+    {CustomerNeed_Main::Long, "Long"},
+    {CustomerNeed_Main::Main_None, "None"}
+};
+std::string_view Enum_to_string(CustomerNeed_Main* m)
+{
+    return CustomerNeed_MainMap[*m];
+}
 enum CustomerNeed_Sup {
     Sup_None = 0,
     Cow,
     Oat,
 };
+std::map<CustomerNeed_Sup, std::string_view> CustomerNeed_SupMap = {
+    {CustomerNeed_Sup::Sup_None, "None"},
+    {CustomerNeed_Sup::Oat, "Oat Milk"},
+    {CustomerNeed_Sup::Cow, "Cow Milk"}
+};
+std::string_view Enum_to_string(CustomerNeed_Sup* m)
+{
+    return CustomerNeed_SupMap[*m];
+}
 
 class Customer {
   public:
