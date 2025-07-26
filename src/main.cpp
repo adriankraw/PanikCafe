@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <list>
+#include <memory>
 #include <vector>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
@@ -18,6 +19,9 @@
 #include "customer.cpp"
 #include "game.cpp"
 #include "gameObject.cpp"
+#include "notif/notificationManager.cpp"
+
+std::unique_ptr<NotificationManager> manager = std::unique_ptr<NotificationManager>(new NotificationManager());
 
 void ReadInput(Camera &camera) {
     float mouseWheel = GetMouseWheelMove();
@@ -49,7 +53,8 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
         SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyPressed(KEY_SPACE)) {
-        printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
+        manager->AddNotification(NotificationEnum::Alert, "alleeeerrrrtttt!");
+        //printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
     }
 }
 
@@ -123,7 +128,6 @@ Model* ImportModelWithAnimations(Game *game, std::string path) {
 int main(int argc, char *argv[]) {
 
     InitWindow(1280, 720, "CodingProject");
-
     // default materialValue
     float def_roughness = 0.4f;
     float def_metalic = 0.1f;
@@ -197,6 +201,7 @@ int main(int argc, char *argv[]) {
                         cust.active = true;
                         cust.served = false;
                         game.SetupCustomer(&cust);
+                        manager->AddNotification(NotificationEnum::INFO, "Customer entered");
                         printf(">> customer entered the room -- Customers %i\n", game.customersCount);
                         std::cout << "^--" << Enum_to_string(&cust.need_main) << " with " << Enum_to_string(&cust.need_sup) << "\n";
                         break;
@@ -567,6 +572,7 @@ int main(int argc, char *argv[]) {
             DrawText(timebuffer, 5, 5, 48, BLACK);
             DrawText(std::to_string((int)(1.0f/GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48, BLACK);
         }
+        manager->Update();
         EndDrawing();
     }
     rlUnloadFramebuffer(shadowTexture.id);
