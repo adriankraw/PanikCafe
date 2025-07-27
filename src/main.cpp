@@ -53,7 +53,7 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
         SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyPressed(KEY_SPACE)) {
-        manager->AddNotification(NotificationEnum::Alert, "alleeeerrrrtttt!");
+        manager->AddNotification(NotificationEnum::ALERT, "alleeeerrrrtttt!");
         //printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
     }
 }
@@ -201,9 +201,12 @@ int main(int argc, char *argv[]) {
                         cust.active = true;
                         cust.served = false;
                         game.SetupCustomer(&cust);
-                        manager->AddNotification(NotificationEnum::INFO, "Customer entered");
-                        printf(">> customer entered the room -- Customers %i\n", game.customersCount);
-                        std::cout << "^--" << Enum_to_string(&cust.need_main) << " with " << Enum_to_string(&cust.need_sup) << "\n";
+                        std::string order = (std::string)Enum_to_string(&cust.need_main);
+                        if(cust.need_sup != CustomerNeed_Sup::Sup_None){
+                            order.append(" with ");
+                            order.append(Enum_to_string(&cust.need_sup));
+                        }
+                        manager->AddNotification(NotificationEnum::ORDER, order);
                         break;
                     }
                 }

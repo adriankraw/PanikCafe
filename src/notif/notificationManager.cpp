@@ -1,5 +1,6 @@
 #include "InfoNotification.cpp"
 #include "AlertNotification.cpp"
+#include "OrderNotification.cpp"
 #include "raylib.h"
 #include <iostream>
 #include <list>
@@ -7,7 +8,8 @@
 
 enum NotificationEnum {
     INFO,
-    Alert,
+    ALERT,
+    ORDER,
 };
 
 class NotificationManager {
@@ -41,8 +43,11 @@ void NotificationManager::AddNotification(NotificationEnum notificationEnum, std
     case NotificationEnum::INFO:
         notifications.push_back(std::unique_ptr<InfoNotification>(new InfoNotification(text)));
         break;
-    case NotificationEnum::Alert:
+    case NotificationEnum::ALERT:
         notifications.push_back(std::unique_ptr<AlertNotification>(new AlertNotification(text)));
         break;
+    case NotificationEnum::ORDER:
+        notifications.push_back(std::unique_ptr<OrderNotification>(new OrderNotification(text)));
+    break;
     }
 }
