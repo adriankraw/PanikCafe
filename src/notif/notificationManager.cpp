@@ -49,5 +49,8 @@ void NotificationManager::AddNotification(NotificationEnum notificationEnum, std
     case NotificationEnum::ORDER:
         notifications.push_back(std::unique_ptr<OrderNotification>(new OrderNotification(text)));
     break;
+    default:
+        notifications.push_back(std::unique_ptr<InfoNotification>(new InfoNotification(text)));
+    break;
     }
 }
