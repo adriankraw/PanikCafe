@@ -114,7 +114,7 @@ Model* ImportModelWithAnimations(Game *game, std::string path) {
 
         if(animations.frameCount<=1) continue; // dont care about animations containing only 1 frame ...
 
-        game->models.back().animations.emplace_back(modelAnimations[i]);
+        game->models.back().animations.emplace_back(animations);
         std::printf("animation %i loaded\n", i);
         for (int f = 0; f < animations.frameCount; ++f) {
             // Vector3 pose = animations.framePoses[f]->translation;
@@ -574,6 +574,10 @@ int main(int argc, char *argv[]) {
             }
             DrawText(timebuffer, 5, 5, 48, BLACK);
             DrawText(std::to_string((int)(1.0f/GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48, BLACK);
+            DrawTextureRec(
+                shadowTexture.texture,
+                Rectangle{0, 0, screenTexture.texture.width/4.0f, -screenTexture.texture.height/4.0f},
+                Vector2{0, 0}, WHITE);
         }
         manager->Update();
         EndDrawing();
