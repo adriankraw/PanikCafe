@@ -30,5 +30,6 @@ class GameObject {
     std::vector<ModelAnimation> animations;
     float animationsFrame;
     int animationCurrent;
+    bool depthIgnore = false;
 };
 

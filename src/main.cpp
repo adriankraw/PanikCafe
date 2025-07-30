@@ -52,6 +52,14 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
         lightPosition->z += -5 * GetFrameTime();
         SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
+    if (IsKeyDown(KEY_Q)) {
+        lightPosition->y += 5 * GetFrameTime();
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
+    }
+    if (IsKeyDown(KEY_E)) {
+        lightPosition->y += -5 * GetFrameTime();
+        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
+    }
     if (IsKeyPressed(KEY_SPACE)) {
         manager->AddNotification(NotificationEnum::ALERT, "alleeeerrrrtttt!");
         //printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
@@ -128,6 +136,10 @@ Model* ImportModelWithAnimations(Game *game, std::string path) {
 int main(int argc, char *argv[]) {
 
     InitWindow(1280, 720, "CodingProject");
+
+    config::getInstance().LoadConfig();
+    GetFontDefault() = config::getInstance().fontNormal;
+
     // default materialValue
     float def_roughness = 0.4f;
     float def_metalic = 0.1f;
@@ -140,12 +152,14 @@ int main(int argc, char *argv[]) {
     mainCam.projection = CAMERA_PERSPECTIVE;
 
     rlDisableBackfaceCulling();
-    rlEnableDepthTest();
+    //rlEnableDepthTest();
+    //rlEnableDepthMask();
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(60);
 
     Vector3 objPosition = {0, 0, 0};
-    Vector3 lightPosition = {7.0f, 4.0f, 6.0f};
-    float shadowMapResolution = 512;
+    Vector3 lightPosition = Vector3{0.0f, 6.0f, 0.0f};
+    float shadowMapResolution = 512*2;
     Vector3 viewPos = {0, 0, 0};
     Vector3 viewDir = {0, 0, 0};
     float rotation = 90;
@@ -155,6 +169,8 @@ int main(int argc, char *argv[]) {
     Game game = Game();
 
     Material defaultMat = LoadMaterialDefault();
+    ImportModelWithAnimations(&game, "./CafeBarRoom.glb");
+    game.models.back().depthIgnore = true;
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
     game.playerModel = ImportModelWithAnimations(&game, "./KitFox.glb");
@@ -170,11 +186,11 @@ int main(int argc, char *argv[]) {
     Shader shadowmapShader =
         LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
     Camera3D lightCam = Camera3D{0};
-    lightCam.position = Vector3Scale(lightPosition, 1.0f);
-    lightCam.target = Vector3{0, 0, 0};
+    lightCam.position = lightPosition;
+    lightCam.target = mainCam.target;
     lightCam.projection = CAMERA_ORTHOGRAPHIC;
     lightCam.up = Vector3{0, 1, 0};
-    lightCam.fovy = 25.0f;
+    lightCam.fovy = 20.0f;
     RenderTexture2D shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
     SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
     SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
@@ -190,6 +206,7 @@ int main(int argc, char *argv[]) {
 
     while (!WindowShouldClose()) {
         ReadInput(&lightPosition, coolShader); // light movement WASD
+        lightCam.position = lightPosition;
         ReadInput(mainCam);                    // camera movement
 
         if (game.customersCount < game.customersMax) {
@@ -215,6 +232,8 @@ int main(int argc, char *argv[]) {
         }
 
         // shadowRender
+        SetShaderValueV(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &lightPosition,
+                        SHADER_UNIFORM_VEC3, 1);
         Matrix lightProj;
         Matrix lightView;
         defaultMat.shader = shadowmapShader;
@@ -230,7 +249,6 @@ int main(int argc, char *argv[]) {
         }
 
         rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK);
-        rlSetClipPlanes(0.01f, 100.0f);
         BeginTextureMode(shadowTexture);
         {
             ClearBackground(RAYWHITE);
@@ -239,6 +257,8 @@ int main(int argc, char *argv[]) {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
                 for (int model_index = 0; model_index < game.models.size(); ++model_index) {
+                    if (game.models[model_index].depthIgnore) continue;
+
                     Vector3 trans = game.models[model_index].translation;
                     if (game.models[model_index].animations.size() > 0) {
                         float frame = game.models[model_index].animationsFrame;
@@ -296,7 +316,7 @@ int main(int argc, char *argv[]) {
                         SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
-        // SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
+        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
 
         defaultMat.shader = coolShader;
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
@@ -572,12 +592,9 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
+            DrawTexturePro(shadowTexture.depth, Rectangle{0,0,(float)shadowTexture.depth.width, -(float)shadowTexture.depth.height}, Rectangle{0,0,250,250}, Vector2{0,0}, 0, RAYWHITE);
             DrawText(timebuffer, 5, 5, 48, BLACK);
             DrawText(std::to_string((int)(1.0f/GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48, BLACK);
-            DrawTextureRec(
-                shadowTexture.texture,
-                Rectangle{0, 0, screenTexture.texture.width/4.0f, -screenTexture.texture.height/4.0f},
-                Vector2{0, 0}, WHITE);
         }
         manager->Update();
         EndDrawing();
