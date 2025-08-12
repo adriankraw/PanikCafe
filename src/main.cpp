@@ -151,7 +151,8 @@ int main(int argc, char *argv[]) {
     mainCam.fovy = 45.0f;
     mainCam.projection = CAMERA_PERSPECTIVE;
 
-    rlDisableBackfaceCulling();
+    //rlDisableBackfaceCulling();
+    //rlEnableBackfaceCulling();
     //rlEnableDepthTest();
     //rlEnableDepthMask();
     SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -247,8 +248,8 @@ int main(int argc, char *argv[]) {
                 game.models[gO].model.materials[ma].shader = shadowmapShader;
             }
         }
-
-        rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK);
+        rlDisableBackfaceCulling();
+        rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
         BeginTextureMode(shadowTexture);
         {
             ClearBackground(RAYWHITE);
@@ -257,7 +258,7 @@ int main(int argc, char *argv[]) {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
                 for (int model_index = 0; model_index < game.models.size(); ++model_index) {
-                    if (game.models[model_index].depthIgnore) continue;
+                    //if (game.models[model_index].depthIgnore) continue;
 
                     Vector3 trans = game.models[model_index].translation;
                     if (game.models[model_index].animations.size() > 0) {
@@ -326,6 +327,7 @@ int main(int argc, char *argv[]) {
         }
         SetShaderValue(coolShader, GetShaderLocation(coolShader, "shadowMapResolution"), &shadowMapResolution,
                        SHADER_UNIFORM_INT);
+        //rlEnableBackfaceCulling();
         rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
         BeginTextureMode(screenTexture);
         {

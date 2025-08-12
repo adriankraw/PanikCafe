@@ -53,9 +53,9 @@ void main()
         texelColor = vec4(0);
     }
     */
-    //texelColor = texture(texture0, uv);
-    /*
-    if(clamp(texelColor.r+texelColor.g+texelColor.b, 0.0f, 1.0f) == 0)
+    texelColor = texture(texture0, uv);
+    
+    if(clamp((texelColor.r+texelColor.g+texelColor.b)/3.0f, 0.0f, 1.0f) >= 0.99f)
     {
         int blurRange = 4;
         for(int x = -blurRange; x <= blurRange; x++)
@@ -67,7 +67,7 @@ void main()
             texelColor += texture(texture0,vec2(uv.x,uv.y+y/height));
         }
         texelColor /= 2*(1 + 2*blurRange);
-    }*/
+    }
     
     vec3 result = texelColor.rgb;
 

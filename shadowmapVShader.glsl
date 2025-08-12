@@ -11,6 +11,7 @@ uniform mat4 mvp;
 uniform mat4 matModel;
 uniform mat4 matNormal;
 uniform mat4 matLightVP;
+uniform vec3 lightPos;
 
 // Output vertex attributes (to fragment shader)
 out vec3 fragPosition;
@@ -34,5 +35,7 @@ void main()
     vec4 worldSpace = matModel * vec4(vertexPosition, 1.0f);
     vec4 screenSpace = matLightVP*worldSpace;
     fragShadowDepth = screenSpace.z/screenSpace.w;
+    vec3 lightDir = -lightPos;
+    fragShadowDepth *= ((lightDir.x*fragPosition.x)+(lightDir.y*fragPosition.y)+(lightDir.z*fragPosition.z));
     fragShadowTexCoord = (screenSpace.xy/screenSpace.w)*0.5f+0.5f;
 }

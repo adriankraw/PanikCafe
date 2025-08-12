@@ -31,6 +31,7 @@ const float PI = 3.14159265359;
 const float alphaCutout = 0.2f;
 const float minclamp = 0.0001f;
 const float maxclamp = 100.0f;
+const float lightstrength = 1.0f;
 
 
 float D(float alpha, vec3 N, vec3 H)
@@ -43,10 +44,10 @@ float D(float alpha, vec3 N, vec3 H)
 }
 float G1(float alpha, vec3 N, vec3 X)
 {
-    float numerator = max(dot(N, X), 0.0f);
+    float numerator = max(dot(N, X), 0.00001f);
     //float k = alpha / 2.0f;
-    float k = pow(alpha+1.0, 2) / 2.0;
-    float denominator = max(dot(N, X), 0.00001f) * (1.0 - k) + k;
+    float k = pow(alpha+0.00001, 2) / 2.0;
+    float denominator = numerator * (1.0 - k) + k;
 
     return numerator / max(denominator, 0.0001);
 }
@@ -54,9 +55,13 @@ float G(float alpha, vec3 N, vec3 V, vec3 L)
 {
     return G1(alpha, N, V) * G1(alpha, N, L);
 }
-vec3 F(vec3 F0, vec3 V, vec3 H)
+vec3 F(vec3 F0, vec3 V, vec3 L, vec3 H)
 {
-    return F0 + (vec3(1.0) - F0) * pow(1 - max(dot(V, H), 0.0), 5.0);
+    //return F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(V, H), 0.0), 5.0);
+    vec3 basecolor = max(texture(texture0,  fragTexCoord), 0.01).xyz / PI;
+    basecolor *= (1 + (F0.x - 1)* pow(max(dot(V, H), 0.0), 5.0));
+    basecolor *= (1 + (F0.x - 1)* pow(max(dot(L, H), 0.0), 5.0));
+    return basecolor;
 }
 
 void main()
@@ -68,7 +73,7 @@ void main()
     }
     vec3 ambient = ambientColor * 0.03f;
 
-    vec4 textureMesh = max(texture(texture0,  fragTexCoord), 0.01);
+    vec4 textureMesh = texture(texture0,  fragTexCoord);
     float roughness  = max(texture(roughness,fragTexCoord).x,0.01);
     if (roughness1 > 0) roughness = roughness1;
     float metalic    = max(texture(metalness,  fragTexCoord).x,0.01);
@@ -76,7 +81,7 @@ void main()
 
     vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
     float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
-    vec3 lightColor = vec3(23.47, 21.31, 20.79);
+    vec3 lightColor = vec3(23.47, 21.31, 20.79) * lightstrength;
     float lightdistance = length(lightPos - fragPosition);
     float attenuation = 1.0/(lightdistance * lightdistance);
     vec3 radiance = lightColor * attenuation;
@@ -86,49 +91,43 @@ void main()
     vec3 L = normalize(lightPos - fragPosition);
     vec3 V = normalize(viewPos - fragPosition);
     vec3 H = normalize(L + V);
-    vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
+    //vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
+    vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
 
-    vec3 Ks = F(F0, V, H); // specular
+    vec3 Ks = F(F0, V, L, H); // specular
     vec3 Kd = vec3(1.0) - Ks; //diffuse
-    Kd *= 1.0 - metalic;
+    Kd *= (1.0 - metalic);
 
     vec3 lambert = albedoMesh.xyz / PI;
-    vec3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, L, N);
+    vec3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, V, L, N);
     float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.00001;
     vec3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator; 
 
     vec3 BRDF = Kd * lambert + cookTorrance;
     vec3 outgoingLight = emissivityMesh + BRDF * radiance* 20 * max(dot(L, N), 0.0);
 
+    vec3 result = outgoingLight;
+
     //shadow
     vec4 fragPosLightSpace = lightViewProj * vec4(fragPosition, 1);
     fragPosLightSpace.xyz /= fragPosLightSpace.w;
     fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
+
     vec2 shadowUVCoord = fragPosLightSpace.xy;
     float shadowDepth = fragPosLightSpace.z;
     float shadow     = texture(shadow0, shadowUVCoord).x;
 
     float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
     int shadowCounter = 0;
-    int numSamples = 1;
-    vec2 texelSize = vec2(1.0/float(shadowMapResolution*4));
+    vec2 texelSize = vec2(1.0/float(shadowMapResolution));
     float sampleDepth = texture(shadow0, shadowUVCoord).r;
-    int range = 1;
-    for (int x = -range; x <= range; x++)
+
+    if((sampleDepth <= bias || sampleDepth < 1))
     {
-        for (int y = -range; y <= range; y++)
-        {
-            sampleDepth += texture(shadow0, shadowUVCoord + (texelSize)*vec2(x, y)).r;
-            numSamples++;
-        }
+        result *= sampleDepth;
     }
-    vec3 result = outgoingLight;
-    if(sampleDepth/numSamples < bias)
-    {
-        result *= 0;
-    }
-    //result *= pow(sampleDepth/numSamples,2.0);
-    //result += ambient/2;
-    //result = pow(result, vec3(1.0/2.2f));
+    
+    result += ambient;
+    result = pow(result, vec3(1.0/2.2f));
     finalColor = vec4(result , textureMesh.a);
 }
