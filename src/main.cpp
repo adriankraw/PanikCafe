@@ -62,7 +62,7 @@ void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
     }
     if (IsKeyPressed(KEY_SPACE)) {
         manager->AddNotification(NotificationEnum::ALERT, "alleeeerrrrtttt!");
-        //printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
+        printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
     }
 }
 
@@ -109,7 +109,7 @@ RenderTexture2D LoadRenderTextureWithDepth(int width, int height) {
     return target;
 }
 
-Model* ImportModelWithAnimations(Game *game, std::string path) {
+Model *ImportModelWithAnimations(Game *game, std::string path) {
     Model modelTarget = LoadModel(path.c_str());
     game->models.emplace_back(GameObject("", modelTarget, Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{1, 1, 1}));
 
@@ -120,7 +120,8 @@ Model* ImportModelWithAnimations(Game *game, std::string path) {
     for (int i = 0; i < animCount; ++i) {
         auto animations = modelAnimations[i];
 
-        if(animations.frameCount<=1) continue; // dont care about animations containing only 1 frame ...
+        if (animations.frameCount <= 1)
+            continue; // dont care about animations containing only 1 frame ...
 
         game->models.back().animations.emplace_back(animations);
         std::printf("animation %i loaded\n", i);
@@ -151,16 +152,11 @@ int main(int argc, char *argv[]) {
     mainCam.fovy = 45.0f;
     mainCam.projection = CAMERA_PERSPECTIVE;
 
-    //rlDisableBackfaceCulling();
-    //rlEnableBackfaceCulling();
-    //rlEnableDepthTest();
-    //rlEnableDepthMask();
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(60);
 
     Vector3 objPosition = {0, 0, 0};
-    Vector3 lightPosition = Vector3{0.0f, 6.0f, 0.0f};
-    float shadowMapResolution = 512*2;
+    float shadowMapResolution = 512 * 2;
     Vector3 viewPos = {0, 0, 0};
     Vector3 viewDir = {0, 0, 0};
     float rotation = 90;
@@ -171,11 +167,10 @@ int main(int argc, char *argv[]) {
 
     Material defaultMat = LoadMaterialDefault();
     ImportModelWithAnimations(&game, "./CafeBarRoom.glb");
-    game.models.back().depthIgnore = true;
+    //game.models.back().depthIgnore = true;
     ImportModelWithAnimations(&game, "./CafeBar.glb");
     ImportModelWithAnimations(&game, "./CafeBar_Event_Ball.glb");
     game.playerModel = ImportModelWithAnimations(&game, "./KitFox.glb");
-
 
     Model customersSpawnPoints = LoadModel("./Customers.glb");
     for (int c = 0; c < game.customers.size(); ++c) {
@@ -186,15 +181,16 @@ int main(int argc, char *argv[]) {
     Shader screenShader = LoadShader(0, TextFormat("./screenFragmentShader.glsl", 330));
     Shader shadowmapShader =
         LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
-    Camera3D lightCam = Camera3D{0};
-    lightCam.position = lightPosition;
-    lightCam.target = mainCam.target;
-    lightCam.projection = CAMERA_ORTHOGRAPHIC;
-    lightCam.up = Vector3{0, 1, 0};
-    lightCam.fovy = 20.0f;
-    RenderTexture2D shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
-    SetTextureWrap(shadowTexture.texture, TEXTURE_WRAP_CLAMP);
-    SetTextureFilter(shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
+
+    game.SetupLights();
+    Camera3D *lightCam = &game.lights.at(0).cam;
+    Vector3 *lightPosition = &lightCam->position;
+
+    for (auto &light : game.lights) {
+        light.shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
+        SetTextureWrap(light.shadowTexture.texture, TEXTURE_WRAP_CLAMP);
+        SetTextureFilter(light.shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
+    }
 
     Shader coolShader = LoadShader(TextFormat("./vertexShader.glsl", 330), TextFormat("./fragmentShader.glsl", 330));
 
@@ -206,9 +202,9 @@ int main(int argc, char *argv[]) {
     RayCollision collision = {0};
 
     while (!WindowShouldClose()) {
-        ReadInput(&lightPosition, coolShader); // light movement WASD
-        lightCam.position = lightPosition;
-        ReadInput(mainCam);                    // camera movement
+        ReadInput(lightPosition, coolShader); // light movement WASD
+        lightCam->position = *lightPosition;
+        ReadInput(mainCam); // camera movement
 
         if (game.customersCount < game.customersMax) {
             game.customersCooldown -= GetFrameTime();
@@ -220,7 +216,7 @@ int main(int argc, char *argv[]) {
                         cust.served = false;
                         game.SetupCustomer(&cust);
                         std::string order = (std::string)Enum_to_string(&cust.need_main);
-                        if(cust.need_sup != CustomerNeed_Sup::Sup_None){
+                        if (cust.need_sup != CustomerNeed_Sup::Sup_None) {
                             order.append(" with ");
                             order.append(Enum_to_string(&cust.need_sup));
                         }
@@ -233,8 +229,8 @@ int main(int argc, char *argv[]) {
         }
 
         // shadowRender
-        SetShaderValueV(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &lightPosition,
-                        SHADER_UNIFORM_VEC3, 1);
+        rlDisableBackfaceCulling();
+        rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
         Matrix lightProj;
         Matrix lightView;
         defaultMat.shader = shadowmapShader;
@@ -248,76 +244,84 @@ int main(int argc, char *argv[]) {
                 game.models[gO].model.materials[ma].shader = shadowmapShader;
             }
         }
-        rlDisableBackfaceCulling();
-        rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
-        BeginTextureMode(shadowTexture);
-        {
-            ClearBackground(RAYWHITE);
-            BeginMode3D(lightCam);
+        for (auto &light : game.lights) {
+            RenderTexture2D* shadowTexture = &light.shadowTexture;
+            SetShaderValueV(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), lightPosition,
+                            SHADER_UNIFORM_VEC3, 1);
+            BeginTextureMode(*shadowTexture);
             {
-                lightView = rlGetMatrixModelview();
-                lightProj = rlGetMatrixProjection();
-                for (int model_index = 0; model_index < game.models.size(); ++model_index) {
-                    //if (game.models[model_index].depthIgnore) continue;
+                ClearBackground(RAYWHITE);
+                BeginMode3D(*lightCam);
+                {
+                    lightView = rlGetMatrixModelview();
+                    lightProj = rlGetMatrixProjection();
+                    for (int model_index = 0; model_index < game.models.size(); ++model_index) {
+                        if (game.models[model_index].depthIgnore)
+                            continue;
 
-                    Vector3 trans = game.models[model_index].translation;
-                    if (game.models[model_index].animations.size() > 0) {
-                        float frame = game.models[model_index].animationsFrame;
-                        trans.x -= game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[0]
-                                       ->translation.x /
-                                   1;
-                        trans.y -= game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[0]
-                                       ->translation.z /
-                                   1;
-                        trans.z -= game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[0]
-                                       ->translation.y /
-                                   -1;
+                        Vector3 trans = game.models[model_index].translation;
+                        if (game.models[model_index].animations.size() > 0) {
+                            float frame = game.models[model_index].animationsFrame;
+                            trans.x -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.x /
+                                       1;
+                            trans.y -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.z /
+                                       1;
+                            trans.z -= game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[0]
+                                           ->translation.y /
+                                       -1;
 
-                        trans.x += game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[(int)frame]
-                                       ->translation.x /
-                                   1;
-                        trans.y += game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[(int)frame]
-                                       ->translation.z /
-                                   1;
-                        trans.z += game.models[model_index]
-                                       .animations[game.models[model_index].animationCurrent]
-                                       .framePoses[(int)frame]
-                                       ->translation.y /
-                                   -1;
+                            trans.x += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.x /
+                                       1;
+                            trans.y += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.z /
+                                       1;
+                            trans.z += game.models[model_index]
+                                           .animations[game.models[model_index].animationCurrent]
+                                           .framePoses[(int)frame]
+                                           ->translation.y /
+                                       -1;
+                        }
+                        DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1},
+                                    WHITE);
                     }
-                    DrawModelEx(game.models[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
-                }
-                for (size_t cu = 0; cu < game.customers.size(); ++cu) {
-                    if (game.customers[cu].active) {
-                        float clicked = game.customers[cu].clicked ? 1 : 0;
-                        DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
+                    for (size_t cu = 0; cu < game.customers.size(); ++cu) {
+                        if (game.customers[cu].active) {
+                            float clicked = game.customers[cu].clicked ? 1 : 0;
+                            DrawMesh(*game.customers[cu].mesh, defaultMat, customersSpawnPoints.transform);
+                        }
                     }
                 }
+                EndMode3D();
             }
-            EndMode3D();
+            EndTextureMode();
+            light.projectionMatrix = MatrixMultiply(lightView, lightProj);
         }
-        EndTextureMode();
-        Matrix lightViewProj = MatrixMultiply(lightView, lightProj);
-        SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), lightViewProj);
 
         // light & color
         viewPos = mainCam.position;
         viewDir = Vector3Normalize(mainCam.target - viewPos);
-        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), &lightPosition,
+        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
                         SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
-        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), shadowTexture.depth);
+
+        int lightIndex = 0;
+        RenderTexture2D shadowTexture = game.lights.at(lightIndex).shadowTexture;
+        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), game.lights.at(lightIndex).shadowTexture.depth);
+        SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), game.lights.at(lightIndex).projectionMatrix);
 
         defaultMat.shader = coolShader;
         for (size_t gO = 0; gO < game.models.size(); ++gO) {
@@ -327,7 +331,7 @@ int main(int argc, char *argv[]) {
         }
         SetShaderValue(coolShader, GetShaderLocation(coolShader, "shadowMapResolution"), &shadowMapResolution,
                        SHADER_UNIFORM_INT);
-        //rlEnableBackfaceCulling();
+        // rlEnableBackfaceCulling();
         rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
         BeginTextureMode(screenTexture);
         {
@@ -412,12 +416,14 @@ int main(int argc, char *argv[]) {
                 SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked, SHADER_UNIFORM_FLOAT);
             }
             // Draw lightSphere
-            DrawSphere(lightPosition, 0.2f, BLUE);
+            for (auto light : game.lights) {
+                DrawSphere(light.cam.position, 0.2f, BLUE);
+            }
             EndMode3D();
         }
         EndTextureMode();
-        
-        //Raycast Mouseclick on customers
+
+        // Raycast Mouseclick on customers
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (!collision.hit || true) {
                 std::list<int> clickedLastFrame;
@@ -571,7 +577,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-            GuiLabel(labelRect, game.GetFreeCustomer() != nullptr ? game.GetFreeCustomer()->name.c_str(): "");
+            GuiLabel(labelRect, game.GetFreeCustomer() != nullptr ? game.GetFreeCustomer()->name.c_str() : "");
 
             if (game.playerActionStarted) {
                 game.playerActionValue += GetFrameTime();
@@ -581,7 +587,8 @@ int main(int argc, char *argv[]) {
                 float actionBarEndValue = game.playerActionDuration;
                 GuiProgressBar(Rectangle{(screenTexture.texture.width - actionBarWidth) / 2,
                                          screenTexture.texture.height - 50.0f, actionBarWidth, actionBarHeight},
-                               "", std::to_string(game.playerActionDuration).c_str(), &game.playerActionValue, actionBarStartValue, actionBarEndValue);
+                               "", std::to_string(game.playerActionDuration).c_str(), &game.playerActionValue,
+                               actionBarStartValue, actionBarEndValue);
                 if (game.playerActionValue == actionBarEndValue) {
                     if (!game.playerAction.empty()) {
                         std::function<void()> action = game.playerAction.front();
@@ -594,14 +601,19 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-            DrawTexturePro(shadowTexture.depth, Rectangle{0,0,(float)shadowTexture.depth.width, -(float)shadowTexture.depth.height}, Rectangle{0,0,250,250}, Vector2{0,0}, 0, RAYWHITE);
+            DrawTexturePro(shadowTexture.depth,
+                           Rectangle{0, 0, (float)shadowTexture.depth.width, -(float)shadowTexture.depth.height},
+                           Rectangle{0, 0, 250, 250}, Vector2{0, 0}, 0, RAYWHITE);
             DrawText(timebuffer, 5, 5, 48, BLACK);
-            DrawText(std::to_string((int)(1.0f/GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48, BLACK);
+            DrawText(std::to_string((int)(1.0f / GetFrameTime())).c_str(), screenTexture.texture.width - 100, 5, 48,
+                     BLACK);
         }
         manager->Update();
         EndDrawing();
     }
-    rlUnloadFramebuffer(shadowTexture.id);
+    for (auto &light : game.lights) {
+        rlUnloadFramebuffer(light.shadowTexture.id);
+    }
     UnloadShader(coolShader);
     UnloadShader(shadowmapShader);
     UnloadModel(customersSpawnPoints);

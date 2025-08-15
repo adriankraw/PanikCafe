@@ -10,6 +10,18 @@
 #include "gameObject.cpp"
 #include <raylib.h>
 
+class Light{
+public:
+    Camera cam = Camera{0};
+    float amplitude = 1;
+    Vector3 Color = Vector3{0,0,0};
+    Matrix projectionMatrix{0,0,0,0, 0,0,0,0, 0,0,0,0};
+    RenderTexture2D shadowTexture{0};
+
+    Light(){};
+    ~Light(){};
+};
+
 class Game {
   public:
     Game();
@@ -23,6 +35,7 @@ class Game {
     void SetupCustomer(Customer *);
     void serveCustomer(Customer *);
     bool checkCustomer(Customer *);
+    void SetupLights();
     void GetCaffeeRecepe(int, int*, int*);
     void increaseBeanCount();
     void grindBeans();
@@ -43,6 +56,7 @@ class Game {
     std::queue<std::function<void()>> playerAction;
 
     std::vector<GameObject> models;
+    std::vector<Light> lights;
 
     std::vector<Customer> customers;
     Customer *selectedCustomer;
@@ -225,4 +239,29 @@ bool Game::checkCustomer(Customer *cu) {
         return true;
     }
     return false;
+}
+void Game::SetupLights(){
+    lights.emplace_back(Light{});
+    Camera3D* lightCam = &lights.back().cam;
+    lightCam->position = Vector3{0.357f,6.0f,0.588f};
+    lightCam->target = Vector3{0,0,0};
+    lightCam->projection = CAMERA_ORTHOGRAPHIC;
+    lightCam->up = Vector3{0, 1, 0};
+    lightCam->fovy = 20.0f;
+
+    lights.emplace_back(Light{});
+    lightCam = &lights.back().cam;
+    lightCam->position = Vector3{2.573f,3.8829f,6.510f};
+    lightCam->target = Vector3{0,0,0};
+    lightCam->projection = CAMERA_ORTHOGRAPHIC;
+    lightCam->up = Vector3{0, 1, 0};
+    lightCam->fovy = 20.0f;
+
+    lights.emplace_back(Light{});
+    lightCam = &lights.back().cam;
+    lightCam->position = Vector3{7.303f, 3.883f, 6.510f};
+    lightCam->target = Vector3{0,0,0};
+    lightCam->projection = CAMERA_ORTHOGRAPHIC;
+    lightCam->up = Vector3{0, 1, 0};
+    lightCam->fovy = 20.0f;
 }
