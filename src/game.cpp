@@ -243,7 +243,7 @@ bool Game::checkCustomer(Customer *cu) {
 void Game::SetupLights(){
     lights.emplace_back(Light{});
     Camera3D* lightCam = &lights.back().cam;
-    lightCam->position = Vector3{0.357f,6.0f,0.588f};
+    lightCam->position = Vector3{4.7f,7.8f,3.7f};
     lightCam->target = Vector3{0,0,0};
     lightCam->projection = CAMERA_ORTHOGRAPHIC;
     lightCam->up = Vector3{0, 1, 0};

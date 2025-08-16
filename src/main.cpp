@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
         LoadShader(TextFormat("./shadowmapVShader.glsl", 330), TextFormat("./shadowmapFShader.glsl", 330));
 
     game.SetupLights();
-    Camera3D *lightCam = &game.lights.at(0).cam;
+    Camera3D *lightCam = &game.lights.at(1).cam;
     Vector3 *lightPosition = &lightCam->position;
 
     for (auto &light : game.lights) {
@@ -246,12 +246,12 @@ int main(int argc, char *argv[]) {
         }
         for (auto &light : game.lights) {
             RenderTexture2D* shadowTexture = &light.shadowTexture;
-            SetShaderValueV(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), lightPosition,
+            SetShaderValueV(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &light.cam.position,
                             SHADER_UNIFORM_VEC3, 1);
             BeginTextureMode(*shadowTexture);
             {
                 ClearBackground(RAYWHITE);
-                BeginMode3D(*lightCam);
+                BeginMode3D(light.cam);
                 {
                     lightView = rlGetMatrixModelview();
                     lightProj = rlGetMatrixProjection();
@@ -313,15 +313,18 @@ int main(int argc, char *argv[]) {
         // light & color
         viewPos = mainCam.position;
         viewDir = Vector3Normalize(mainCam.target - viewPos);
-        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition,
-                        SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
         SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
 
         int lightIndex = 0;
         RenderTexture2D shadowTexture = game.lights.at(lightIndex).shadowTexture;
-        SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0"), game.lights.at(lightIndex).shadowTexture.depth);
-        SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"), game.lights.at(lightIndex).projectionMatrix);
+        for(auto& light: game.lights)
+        {
+            SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos")+lightIndex, &game.lights.at(lightIndex).cam.position, SHADER_UNIFORM_VEC3, 1);
+            SetShaderValueTexture(coolShader, GetShaderLocation(coolShader, "shadow0")+lightIndex, game.lights.at(lightIndex).shadowTexture.depth);
+            SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj")+lightIndex, game.lights.at(lightIndex).projectionMatrix);
+            lightIndex++;
+        }
 
         defaultMat.shader = coolShader;
         for (size_t gO = 0; gO < game.models.size(); ++gO) {

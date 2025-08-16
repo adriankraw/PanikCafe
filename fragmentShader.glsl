@@ -13,14 +13,14 @@ uniform sampler2D roughness;
 uniform float roughness1;
 uniform sampler2D metalness;
 uniform float metalic1;
-uniform sampler2D shadow0;
+uniform sampler2D shadow0[3];
 
 uniform float fragTime;
 uniform vec3 viewPos;
 uniform vec3 viewDir;
-uniform vec3 lightPos;
+uniform vec3 lightPos[3];
 uniform float shadowMapResolution;
-uniform mat4 lightViewProj;
+uniform mat4 lightViewProj[3];
 uniform float selected;
 
 // Output fragment color
@@ -78,53 +78,56 @@ void main()
     if (roughness1 > 0) roughness = roughness1;
     float metalic    = max(texture(metalness,  fragTexCoord).x,0.01);
     if (metalic1 > 0) metalic = metalic1;
+    vec3 result = vec3(0);
 
-    vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
-    float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
-    vec3 lightColor = vec3(23.47, 21.31, 20.79) * lightstrength;
-    float lightdistance = length(lightPos - fragPosition);
-    float attenuation = 1.0/(lightdistance * lightdistance);
-    vec3 radiance = lightColor * attenuation;
-    vec3 emissivityMesh = vec3(0.0);
-
-    vec3 N = normalize(fragNormal);
-    vec3 L = normalize(lightPos - fragPosition);
-    vec3 V = normalize(viewPos - fragPosition);
-    vec3 H = normalize(L + V);
-    //vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
-    vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
-
-    vec3 Ks = F(F0, V, L, H); // specular
-    vec3 Kd = vec3(1.0) - Ks; //diffuse
-    Kd *= (1.0 - metalic);
-
-    vec3 lambert = albedoMesh.xyz / PI;
-    vec3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, V, L, N);
-    float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.00001;
-    vec3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator; 
-
-    vec3 BRDF = Kd * lambert + cookTorrance;
-    vec3 outgoingLight = emissivityMesh + BRDF * radiance* 20 * max(dot(L, N), 0.0);
-
-    vec3 result = outgoingLight;
-
-    //shadow
-    vec4 fragPosLightSpace = lightViewProj * vec4(fragPosition, 1);
-    fragPosLightSpace.xyz /= fragPosLightSpace.w;
-    fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
-
-    vec2 shadowUVCoord = fragPosLightSpace.xy;
-    float shadowDepth = fragPosLightSpace.z;
-    float shadow     = texture(shadow0, shadowUVCoord).x;
-
-    float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
-    int shadowCounter = 0;
-    vec2 texelSize = vec2(1.0/float(shadowMapResolution));
-    float sampleDepth = texture(shadow0, shadowUVCoord).r;
-
-    if((sampleDepth <= bias || sampleDepth < 1))
+    for(int i=0;i<3;++i)
     {
-        result *= sampleDepth;
+        vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
+        float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
+        vec3 lightColor = vec3(23.47, 21.31, 20.79) * lightstrength;
+        float lightdistance = length(lightPos[i] - fragPosition);
+        float attenuation = 1.0/(lightdistance * lightdistance);
+        vec3 radiance = lightColor * attenuation;
+        vec3 emissivityMesh = vec3(0.0);
+
+        vec3 N = normalize(fragNormal);
+        vec3 L = normalize(lightPos[i] - fragPosition);
+        vec3 V = normalize(viewPos - fragPosition);
+        vec3 H = normalize(L + V);
+        //vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
+        vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
+
+        vec3 Ks = F(F0, V, L, H); // specular
+        vec3 Kd = vec3(1.0) - Ks; //diffuse
+        Kd *= (1.0 - metalic);
+
+        vec3 lambert = albedoMesh.xyz / PI;
+        vec3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, V, L, N);
+        float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.00001;
+        vec3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator; 
+
+        vec3 BRDF = Kd * lambert + cookTorrance;
+        vec3 outgoingLight = emissivityMesh + BRDF * radiance* 20 * max(dot(L, N), 0.0);
+
+        vec3 perLight_result = outgoingLight;
+
+        //shadow
+        vec4 fragPosLightSpace = lightViewProj[i] * vec4(fragPosition, 1);
+        fragPosLightSpace.xyz /= fragPosLightSpace.w;
+        fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
+
+        vec2 shadowUVCoord = fragPosLightSpace.xy;
+        float shadowDepth = fragPosLightSpace.z;
+        float shadow     = texture(shadow0[i], shadowUVCoord).x;
+
+        float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
+        vec2 texelSize = vec2(1.0/float(shadowMapResolution));
+
+        if((shadow <= bias || shadow < 1))
+        {
+            perLight_result *= shadow;
+        }
+        result += (perLight_result/3.0f);
     }
     
     result += ambient;
