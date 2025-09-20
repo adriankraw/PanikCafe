@@ -1,4 +1,6 @@
 #pragma once
+#include "raylib.h"
+#include "rlgl.h"
 
 #include <array>
 #include <cstddef>
@@ -8,19 +10,9 @@
 
 #include "customer.cpp"
 #include "gameObject.cpp"
+#include "scene.cpp"
 #include <raylib.h>
 
-class Light{
-public:
-    Camera cam = Camera{0};
-    float amplitude = 1;
-    Vector3 Color = Vector3{0,0,0};
-    Matrix projectionMatrix{0,0,0,0, 0,0,0,0, 0,0,0,0};
-    RenderTexture2D shadowTexture{0};
-
-    Light(){};
-    ~Light(){};
-};
 
 class Game {
   public:
@@ -35,8 +27,7 @@ class Game {
     void SetupCustomer(Customer *);
     void serveCustomer(Customer *);
     bool checkCustomer(Customer *);
-    void SetupLights();
-    void GetCaffeeRecepe(int, int*, int*);
+    void GetCaffeeRecepe(int, int *, int *);
     void increaseBeanCount();
     void grindBeans();
     void increaseSmallCups();
@@ -46,36 +37,40 @@ class Game {
     void increaseEspressoAmount();
     void increaseLatteAmount();
     void increaseLongCafeAmount();
+    void updateObjectTransformByAnim(Vector3 *trans, int model_index, int frame);
 
-    std::string playerName;
-    int playerAge;
-    float playerActionValue;
-    float playerActionDuration; //will need a getter. Dont change the duraction if action is running;
+    std::vector<GameObject> meshes;
+    std::vector<Scene> scenes;
+
+
+    std::string playerName{"playerName"};
+    int playerAge{27};
+    float playerActionValue{0};
+    float playerActionDuration{};
     bool playerActionStarted;
-    Model* playerModel = nullptr;
+    Model *playerModel = nullptr;
     std::queue<std::function<void()>> playerAction;
 
-    std::vector<GameObject> models;
-    std::vector<Light> lights;
 
-    std::vector<Customer> customers;
-    Customer *selectedCustomer;
-    int customersCount;
-    int customersMax;
-    float stressLevel;
-    float customersCooldown;
-    float customersCooldownMax;
-    int smallCupsAmount;
-    int bigCupsAmount;
-    int beansAmount;
-    int grindedBeansAmount;
-    int cowMilkAmount;
-    int oatMilkAmount;
-    int madeEspressoAmount;
-    int madeLatteAmount;
-    int madeLongCafeAmount;
 
-private:
+    std::vector<Customer> customers{};
+    Customer *selectedCustomer{};
+    int customersCount{0};
+    int customersMax{0};
+    float stressLevel{0};
+    float customersCooldown{0};
+    float customersCooldownMax{0};
+    int smallCupsAmount{0};
+    int bigCupsAmount{0};
+    int beansAmount{0};
+    int grindedBeansAmount{0};
+    int cowMilkAmount{0};
+    int oatMilkAmount{0};
+    int madeEspressoAmount{0};
+    int madeLatteAmount{0};
+    int madeLongCafeAmount{0};
+
+  private:
     int spawnedCustomers = 0;
     std::array<std::array<int, 255>, 255> noiseMap = {{}};
     std::array<int, 255> lookUpTable = {};
@@ -87,7 +82,6 @@ Game::Game() {
     playerActionValue = 0.0f;
     playerActionDuration = 1.0f;
     playerActionStarted = false;
-    models = std::vector<GameObject>();
     customers = std::vector<Customer>(10);
     customersCount = 0;
     customersMax = 10;
@@ -101,17 +95,13 @@ Game::Game() {
     oatMilkAmount = 0;
     madeEspressoAmount = 20;
     madeLatteAmount = 0;
-    madeLongCafeAmount = 0;
-     
-    for(size_t x = 0; x < noiseMap.size(); ++x)
-    {
-        for(size_t y = 0; y < noiseMap[x].size(); ++y)
-        {
+
+    for (size_t x = 0; x < noiseMap.size(); ++x) {
+        for (size_t y = 0; y < noiseMap[x].size(); ++y) {
             noiseMap[x][y] = GetRandomValue(0, 5);
         }
     }
-    for(size_t x = 0; x < lookUpTable.size(); ++x)
-    {
+    for (size_t x = 0; x < lookUpTable.size(); ++x) {
         lookUpTable[x] = GetRandomValue(0, 254);
     }
 }
@@ -127,48 +117,45 @@ Customer *Game::GetFreeCustomer() {
     }
     return nullptr;
 }
-void Game::SetupCustomer(Customer* cust)
-{
+void Game::SetupCustomer(Customer *cust) {
     spawnedCustomers++;
     int x = lookUpTable[spawnedCustomers];
-    int y = lookUpTable[(x+spawnedCustomers)%255];
-    
+    int y = lookUpTable[(x + spawnedCustomers) % 255];
+
     int caffeeEnum = noiseMap[x][y];
 
-    GetCaffeeRecepe(caffeeEnum,&x,&y);
+    GetCaffeeRecepe(caffeeEnum, &x, &y);
     cust->need_main = (CustomerNeed_Main)x;
     cust->need_main_Count = 1;
     cust->need_sup = (CustomerNeed_Sup)y;
     cust->need_sup_Count = 1;
 }
-void Game::GetCaffeeRecepe(int rec, int* mainingredient, int* supIngredient)
-{
-    //This will be changed in the future with a propper Recepe map
-    switch(rec)
-    {
-        case 0:
-            *mainingredient = (int)CustomerNeed_Main::Espresso;
-            *supIngredient = (int)CustomerNeed_Sup::Sup_None;
+void Game::GetCaffeeRecepe(int rec, int *mainingredient, int *supIngredient) {
+    // This will be changed in the future with a propper Recepe map
+    switch (rec) {
+    case 0:
+        *mainingredient = (int)CustomerNeed_Main::Espresso;
+        *supIngredient = (int)CustomerNeed_Sup::Sup_None;
         break;
-        case 1:
-            *mainingredient = (int)CustomerNeed_Main::Long;
-            *supIngredient = (int)CustomerNeed_Sup::Sup_None;
+    case 1:
+        *mainingredient = (int)CustomerNeed_Main::Long;
+        *supIngredient = (int)CustomerNeed_Sup::Sup_None;
         break;
-        case 2:
-            *mainingredient = (int)CustomerNeed_Main::Espresso;
-            *supIngredient = (int)CustomerNeed_Sup::Cow;
+    case 2:
+        *mainingredient = (int)CustomerNeed_Main::Espresso;
+        *supIngredient = (int)CustomerNeed_Sup::Cow;
         break;
-        case 3:
-            *mainingredient = (int)CustomerNeed_Main::Espresso;
-            *supIngredient = (int)CustomerNeed_Sup::Oat;
+    case 3:
+        *mainingredient = (int)CustomerNeed_Main::Espresso;
+        *supIngredient = (int)CustomerNeed_Sup::Oat;
         break;
-        case 4:
-            *mainingredient = (int)CustomerNeed_Main::Late;
-            *supIngredient = (int)CustomerNeed_Sup::Cow;
+    case 4:
+        *mainingredient = (int)CustomerNeed_Main::Late;
+        *supIngredient = (int)CustomerNeed_Sup::Cow;
         break;
-        case 5:
-            *mainingredient = (int)CustomerNeed_Main::Late;
-            *supIngredient = (int)CustomerNeed_Sup::Oat;
+    case 5:
+        *mainingredient = (int)CustomerNeed_Main::Late;
+        *supIngredient = (int)CustomerNeed_Sup::Oat;
         break;
     }
 }
@@ -240,28 +227,5 @@ bool Game::checkCustomer(Customer *cu) {
     }
     return false;
 }
-void Game::SetupLights(){
-    lights.emplace_back(Light{});
-    Camera3D* lightCam = &lights.back().cam;
-    lightCam->position = Vector3{4.7f,7.8f,3.7f};
-    lightCam->target = Vector3{0,0,0};
-    lightCam->projection = CAMERA_ORTHOGRAPHIC;
-    lightCam->up = Vector3{0, 1, 0};
-    lightCam->fovy = 20.0f;
 
-    lights.emplace_back(Light{});
-    lightCam = &lights.back().cam;
-    lightCam->position = Vector3{2.573f,3.8829f,6.510f};
-    lightCam->target = Vector3{0,0,0};
-    lightCam->projection = CAMERA_ORTHOGRAPHIC;
-    lightCam->up = Vector3{0, 1, 0};
-    lightCam->fovy = 20.0f;
 
-    lights.emplace_back(Light{});
-    lightCam = &lights.back().cam;
-    lightCam->position = Vector3{7.303f, 3.883f, 6.510f};
-    lightCam->target = Vector3{0,0,0};
-    lightCam->projection = CAMERA_ORTHOGRAPHIC;
-    lightCam->up = Vector3{0, 1, 0};
-    lightCam->fovy = 20.0f;
-}
