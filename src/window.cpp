@@ -6,6 +6,8 @@
 #include "./renderer/meshRenderer.cpp"
 #include "./renderer/uiRenderer.cpp"
 #include "./scene.cpp"
+#include "./input/inputManager.cpp"
+
 #include <raylib.h>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
@@ -17,7 +19,7 @@ class window {
     window();
     ~window();
 
-    void Init(int, int, const std::string);
+    void Init(int width, int height, const std::string title);
     void Loop();
     void Close();
 
@@ -30,6 +32,8 @@ class window {
 
     Game game{};
     Scene mainscene{"mainScene"};
+    std::unique_ptr<NotificationManager> notificationManager = std::unique_ptr<NotificationManager>(new NotificationManager());
+    std::unique_ptr<InputManager> inputManager = std::unique_ptr<InputManager>(new InputManager());
 
 };
 
@@ -38,49 +42,6 @@ window::window() {}
 window::~window() {}
 
 
-std::unique_ptr<NotificationManager> manager = std::unique_ptr<NotificationManager>(new NotificationManager());
-
-void ReadInput(Camera &camera) {
-    float mouseWheel = GetMouseWheelMove();
-    camera.position += Vector3Scale(Vector3Normalize(camera.target - camera.position), mouseWheel / 10.0f);
-
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
-        Vector2 mousePos = GetMouseDelta();
-        camera.position = Vector3RotateByAxisAngle(camera.position, Vector3{0.0f, 1.0f, 0.0f}, -mousePos.x / 100.0f);
-        camera.position = Vector3RotateByAxisAngle(
-            camera.position, Vector3CrossProduct(camera.target - camera.position, camera.up), -mousePos.y / 100.0f);
-    }
-}
-
-void ReadInput(Vector3 *lightPosition, Shader &coolShader) {
-    if (IsKeyDown(KEY_A)) {
-        lightPosition->x += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyDown(KEY_D)) {
-        lightPosition->x += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyDown(KEY_W)) {
-        lightPosition->z += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyDown(KEY_S)) {
-        lightPosition->z += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyDown(KEY_Q)) {
-        lightPosition->y += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyDown(KEY_E)) {
-        lightPosition->y += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
-    }
-    if (IsKeyPressed(KEY_SPACE)) {
-        printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
-    }
-}
 void window::Init(int width, int height, const std::string title) {
     InitWindow(width, height, title.c_str());
     config::getInstance().LoadConfig();
@@ -92,9 +53,10 @@ void window::Init(int width, int height, const std::string title) {
     meshrenderer.game = &game;
     meshrenderer.scene = &game.scenes.at(0);
     UIrendererer.game = &game;
-
     meshrenderer.Init();
     UIrendererer.Init();
+
+    inputManager->scene = &game.scenes.at(0);
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(60);
@@ -113,7 +75,7 @@ void window::Init(int width, int height, const std::string title) {
     meshManager.Import("./KitFox.glb");
     meshManager.Import("./Customers.glb");
 
-    game.scenes[0].LoadScene(&meshManager);
+    game.scenes.at(0).LoadScene(&meshManager);
 
     shaderManager.Import("./shadowmapVShader.glsl;./shadowmapFShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::shadow,shaderManager.list.back());
@@ -135,7 +97,14 @@ void window::Loop() {
     meshrenderer.currentState = renderer::RenderState::shadow;
     meshrenderer.Loop();
 
-    //UIrendererer.Loop();
+    inputManager->Update();
+
+    meshrenderer.currentState = renderer::RenderState::light;
+    meshrenderer.Loop();
+
+    meshrenderer.currentState = renderer::RenderState::screen;
+    meshrenderer.Loop();
+    UIrendererer.Loop();
 
     /*
     Light *lightCam = &game.scenes[0].lights[0];
@@ -194,7 +163,8 @@ void window::Loop() {
         }
     }
     */
-    manager->Update();
+    notificationManager->Update();
+    inputManager->Update();
 }
 
 void window::Close() {
