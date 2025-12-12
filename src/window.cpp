@@ -79,7 +79,7 @@ void window::Init(int width, int height, const std::string title) {
 
     shaderManager.Import("./shadowmapVShader.glsl;./shadowmapFShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::shadow,shaderManager.list.back());
-    shaderManager.Import("./vertexShader.glsl;./fragmentShader.glsl");
+    shaderManager.Import("./vertexShader.glsl;./shadowfragmentShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::light ,shaderManager.list.back());
     shaderManager.Import(";./screenFragmentShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::screen,shaderManager.list.back());

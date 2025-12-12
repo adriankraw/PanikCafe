@@ -159,18 +159,18 @@ void meshRenderer::lightLoop()
     {
         lightPosis[lightIndex] = (scene->lights[lightIndex].cam.position);
     }
-    if(scene->lights.size() > 0)
-    {
-        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"),
-                        &lightPosis, SHADER_UNIFORM_VEC3, scene->lights.size());
-        /*SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"),
-                             scene->lights.at(0).projectionMatrix);*/
-    }
     defaultMat.shader = coolShader;
     for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
         for (size_t ma = 0; ma < scene->gameObjects[gO].model.materialCount; ++ma) {
             scene->gameObjects[gO].model.materials[ma].shader = coolShader;
         }
+    }
+    if(scene->lights.size() > 0)
+    {
+        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"),
+                        &lightPosis, SHADER_UNIFORM_VEC3, scene->lights.size());
+        SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"),
+                             scene->lights.at(0).projectionMatrix);
     }
     // rlEnableBackfaceCulling();
     rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
@@ -191,17 +191,14 @@ void meshRenderer::lightLoop()
                 {
                     auto* model = &scene->gameObjects[gO].model;
                     Material* material = &model->materials[model->meshMaterial[index]]; 
-                    material->shader.locs[SHADER_LOC_MAP_NORMAL] = GetShaderLocation(material->shader, "normal");
-
-                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "texture0"), material->maps[SHADER_LOC_MAP_ALBEDO].texture);
-                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "roughness"), material->maps[SHADER_LOC_MAP_ROUGHNESS].texture);
-                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "metalness"), material->maps[SHADER_LOC_MAP_METALNESS].texture);
-                    //material->maps[MATERIAL_MAP_DIFFUSE].texture = 
-
-                    DrawMesh(model->meshes[index], *material, scene->gameObjects[gO].model.transform);
+                    SetShaderValue(material->shader, GetShaderLocation(material->shader, "shadowMapResolution"), &shadowMapResolution, SHADER_UNIFORM_FLOAT);
+                    for(int lightIndex = 0 ; lightIndex < scene->lights.size(); ++lightIndex)
+                    {
+                        SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "shadow0")+lightIndex, scene->lights[lightIndex].shadowTexture.texture);
+                    }
                 }
 
-                //DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
+                DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
             }
             float clicked = 0;
             for (size_t cu = 0; cu < game->customers.size(); ++cu) {
@@ -239,6 +236,10 @@ void meshRenderer::screenLoop()
             SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
             DrawTextureRec(screenTexture.texture,
                            Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
+                           Vector2{0, 0}, WHITE);
+            auto texture = scene->lights[0].shadowTexture.texture;
+            DrawTextureRec(texture,
+                           Rectangle{0, 0, (float)texture.width, (float)-texture.height},
                            Vector2{0, 0}, WHITE);
         }
         EndShaderMode();
