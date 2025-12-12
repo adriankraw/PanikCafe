@@ -2,6 +2,7 @@
 #include "../scene.cpp"
 #include "../game.cpp"
 
+#include <cstddef>
 #include <iostream>
 #include <ostream>
 #include <raylib.h>
@@ -105,44 +106,47 @@ void meshRenderer::shadowLoop()
         }
     }
     //BeginDrawing();
-    auto &light = scene->lights.at(0);
-    SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &light.cam.position,
-                   SHADER_UNIFORM_VEC3);
-    BeginTextureMode(light.shadowTexture);
+    //auto &light = scene->lights.at(0);
+    for(auto &light: scene->lights)
     {
-        ClearBackground(RAYWHITE);
-        BeginMode3D(light.cam);
+        SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &light.cam.position,
+                       SHADER_UNIFORM_VEC3);
+        BeginTextureMode(light.shadowTexture);
         {
-            lightView = rlGetMatrixModelview();
-            lightProj = rlGetMatrixProjection();
-            for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
-                if (scene->gameObjects[model_index].depthIgnore)
-                    continue;
+            ClearBackground(RAYWHITE);
+            BeginMode3D(light.cam);
+            {
+                lightView = rlGetMatrixModelview();
+                lightProj = rlGetMatrixProjection();
+                for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
+                    if (scene->gameObjects[model_index].depthIgnore)
+                        continue;
 
-                Vector3 trans = scene->gameObjects[model_index].translation;
-                if (scene->gameObjects[model_index].animations.size() > 0) {
-                    float frame = scene->gameObjects[model_index].animationsFrame;
-                    updateObjectTransformByAnim(&trans, model_index, frame);
+                    Vector3 trans = scene->gameObjects[model_index].translation;
+                    if (scene->gameObjects[model_index].animations.size() > 0) {
+                        float frame = scene->gameObjects[model_index].animationsFrame;
+                        updateObjectTransformByAnim(&trans, model_index, frame);
+                    }
+                    DrawModelEx(scene->gameObjects[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
-                DrawModelEx(scene->gameObjects[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
-            }
-            for (size_t cu = 0; cu < game->customers.size(); ++cu) {
-                if (game->customers[cu].active) {
-                    float clicked = game->customers[cu].clicked ? 1 : 0;
-                    DrawMesh(*game->customers[cu].mesh, defaultMat, scene->customersSpawnPoints.transform);
+                for (size_t cu = 0; cu < game->customers.size(); ++cu) {
+                    if (game->customers[cu].active) {
+                        float clicked = game->customers[cu].clicked ? 1 : 0;
+                        DrawMesh(*game->customers[cu].mesh, defaultMat, scene->customersSpawnPoints.transform);
+                    }
                 }
             }
+            EndMode3D();
+            EndTextureMode();
+            light.projectionMatrix = MatrixMultiply(lightView, lightProj);
         }
-        EndMode3D();
-        EndTextureMode();
-        light.projectionMatrix = MatrixMultiply(lightView, lightProj);
     }
     //EndDrawing();
 }
 
 void meshRenderer::lightLoop()
 {
-    RenderTexture screenTexture = renTextures.at(0);
+    RenderTexture& screenTexture = renTextures.at(0);
     // light & color
     viewPos = scene->mainCam.position;
     viewDir = Vector3Normalize(scene->mainCam.target - viewPos);
@@ -150,13 +154,18 @@ void meshRenderer::lightLoop()
     SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
     SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
 
-    int lightIndex = 0;
-    RenderTexture2D *shadowTexture = &scene->lights.at(lightIndex).shadowTexture;
-    SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"),
-                    &scene->lights.at(lightIndex).cam.position, SHADER_UNIFORM_VEC3, 1);
-    SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"),
-                         scene->lights.at(lightIndex).projectionMatrix);
-
+    Vector3 lightPosis[scene->lights.size()];
+    for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
+    {
+        lightPosis[lightIndex] = (scene->lights[lightIndex].cam.position);
+    }
+    if(scene->lights.size() > 0)
+    {
+        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"),
+                        &lightPosis, SHADER_UNIFORM_VEC3, scene->lights.size());
+        /*SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"),
+                             scene->lights.at(0).projectionMatrix);*/
+    }
     defaultMat.shader = coolShader;
     for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
         for (size_t ma = 0; ma < scene->gameObjects[gO].model.materialCount; ++ma) {
@@ -172,43 +181,27 @@ void meshRenderer::lightLoop()
         BeginMode3D(scene->mainCam);
         {
             for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
-                scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_DIFFUSE] =
-                    scene->gameObjects[gO]
-                        .model.materials[scene->gameObjects[gO].model.meshMaterial[0]]
-                        .maps[MATERIAL_MAP_DIFFUSE]
-                        .texture.id;
-                if (scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_DIFFUSE] <= 0) {
-                    SetShaderValue(coolShader, GetShaderLocation(coolShader, "noTexture0"), &def_diffuse,
-                                   SHADER_UNIFORM_FLOAT);
+                
+                Vector3 trans = scene->gameObjects[gO].translation;
+                if (scene->gameObjects[gO].animations.size() > 0) {
+                    float frame = scene->gameObjects[gO].animationsFrame;
+                    updateObjectTransformByAnim(&trans, gO, frame);
                 }
-                scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] =
-                    scene->gameObjects[gO]
-                        .model.materials[scene->gameObjects[gO].model.meshMaterial[0]]
-                        .maps[MATERIAL_MAP_ROUGHNESS]
-                        .texture.id;
-                if (scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_ROUGHNESS] <= 0) {
-                    SetShaderValue(coolShader, GetShaderLocation(coolShader, "roughness1"), &def_roughness,
-                                   SHADER_UNIFORM_FLOAT);
-                }
-                scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] =
-                    scene->gameObjects[gO]
-                        .model.materials[scene->gameObjects[gO].model.meshMaterial[0]]
-                        .maps[MATERIAL_MAP_METALNESS]
-                        .texture.id;
-                if (scene->gameObjects[gO].model.materials->shader.locs[SHADER_LOC_MAP_METALNESS] <= 0) {
-                    SetShaderValue(coolShader, GetShaderLocation(coolShader, "metalic1"), &def_metalic,
-                                   SHADER_UNIFORM_FLOAT);
+                for (size_t index = 0; index < scene->gameObjects[gO].model.meshCount; ++index)
+                {
+                    auto* model = &scene->gameObjects[gO].model;
+                    Material* material = &model->materials[model->meshMaterial[index]]; 
+                    material->shader.locs[SHADER_LOC_MAP_NORMAL] = GetShaderLocation(material->shader, "normal");
+
+                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "texture0"), material->maps[SHADER_LOC_MAP_ALBEDO].texture);
+                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "roughness"), material->maps[SHADER_LOC_MAP_ROUGHNESS].texture);
+                    //SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "metalness"), material->maps[SHADER_LOC_MAP_METALNESS].texture);
+                    //material->maps[MATERIAL_MAP_DIFFUSE].texture = 
+
+                    DrawMesh(model->meshes[index], *material, scene->gameObjects[gO].model.transform);
                 }
 
-                for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
-                    Vector3 trans = scene->gameObjects[model_index].translation;
-                    if (scene->gameObjects[model_index].animations.size() > 0) {
-                        float frame = scene->gameObjects[model_index].animationsFrame;
-                        updateObjectTransformByAnim(&trans, model_index, frame);
-                    }
-
-                    DrawModelEx(scene->gameObjects[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
-                }
+                //DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
             }
             float clicked = 0;
             for (size_t cu = 0; cu < game->customers.size(); ++cu) {
@@ -237,7 +230,7 @@ void meshRenderer::screenLoop()
     RenderTexture screenTexture = renTextures.at(0);
     
     // screentexture
-    BeginDrawing();
+    //BeginDrawing();
     {
         ClearBackground(RAYWHITE);
 
@@ -250,7 +243,7 @@ void meshRenderer::screenLoop()
         }
         EndShaderMode();
     }
-    EndDrawing();
+    //EndDrawing();
 }
 
 RenderTexture2D meshRenderer::LoadRenderTextureWithDepth(int width, int height) {

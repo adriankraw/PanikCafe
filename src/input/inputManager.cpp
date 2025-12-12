@@ -19,10 +19,10 @@ public:
     ~InputManager();
 
     Scene* scene = nullptr;
+    int currentLightIndex{0};
 
     void Update();
     void ReadInput(Camera &camera);
-    void ReadInput(Vector3 *lightPosition, Shader &coolShader);
 
 private:
     
@@ -48,34 +48,39 @@ void InputManager::ReadInput(Camera &camera) {
         camera.position = Vector3RotateByAxisAngle(
             camera.position, Vector3CrossProduct(camera.target - camera.position, camera.up), -mousePos.y / 100.0f);
     }
-}
-
-void InputManager::ReadInput(Vector3 *lightPosition, Shader &coolShader) {
+    if(IsKeyPressed(KEY_ZERO))
+    {
+        currentLightIndex = 0;
+    }
+    if(IsKeyPressed(KEY_ONE))
+    {
+        currentLightIndex = 1;
+    }
+    if(IsKeyPressed(KEY_TWO))
+    {
+        currentLightIndex = 2;
+    }
+    Vector3 *lightPosition = &scene->lights[currentLightIndex].cam.position;
     if (IsKeyDown(KEY_A)) {
         lightPosition->x += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_D)) {
         lightPosition->x += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_W)) {
         lightPosition->z += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_S)) {
         lightPosition->z += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_Q)) {
         lightPosition->y += 5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyDown(KEY_E)) {
         lightPosition->y += -5 * GetFrameTime();
-        SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"), lightPosition, SHADER_UNIFORM_VEC3);
     }
     if (IsKeyPressed(KEY_SPACE)) {
         printf("(%f/%f/%f)\n", lightPosition->x, lightPosition->y, lightPosition->z);
     }
 }
+

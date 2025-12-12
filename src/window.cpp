@@ -80,7 +80,7 @@ void window::Init(int width, int height, const std::string title) {
     shaderManager.Import("./shadowmapVShader.glsl;./shadowmapFShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::shadow,shaderManager.list.back());
     shaderManager.Import("./vertexShader.glsl;./fragmentShader.glsl");
-    meshrenderer.shader.emplace(renderer::RenderState::light,shaderManager.list.back());
+    meshrenderer.shader.emplace(renderer::RenderState::light ,shaderManager.list.back());
     shaderManager.Import(";./screenFragmentShader.glsl");
     meshrenderer.shader.emplace(renderer::RenderState::screen,shaderManager.list.back());
     UIrendererer.shader.emplace(renderer::RenderState::screen,shaderManager.list.back());
@@ -94,6 +94,7 @@ void window::Loop() {
     Ray ray = {0};
     RayCollision collision = {0};
 
+    //prepass
     meshrenderer.currentState = renderer::RenderState::shadow;
     meshrenderer.Loop();
 
@@ -103,9 +104,11 @@ void window::Loop() {
     meshrenderer.Loop();
 
     meshrenderer.currentState = renderer::RenderState::screen;
+
+    BeginDrawing();
     meshrenderer.Loop();
     UIrendererer.Loop();
-
+    EndDrawing();
     /*
     Light *lightCam = &game.scenes[0].lights[0];
     ReadInput(&lightCam->cam.position, meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD
