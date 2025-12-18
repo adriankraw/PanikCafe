@@ -104,11 +104,8 @@ void window::Loop() {
     meshrenderer.Loop();
 
     meshrenderer.currentState = renderer::RenderState::screen;
-
-    BeginDrawing();
     meshrenderer.Loop();
     UIrendererer.Loop();
-    EndDrawing();
     /*
     Light *lightCam = &game.scenes[0].lights[0];
     ReadInput(&lightCam->cam.position, meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD

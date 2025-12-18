@@ -64,6 +64,7 @@ void meshRenderer::Init(){
         light.shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
         SetTextureWrap(light.shadowTexture.texture, TEXTURE_WRAP_CLAMP);
         SetTextureFilter(light.shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
+        light.shadowsCalculated = LoadRenderTexture(1280, 720);
     }
 }
 
@@ -107,17 +108,19 @@ void meshRenderer::shadowLoop()
     }
     //BeginDrawing();
     //auto &light = scene->lights.at(0);
-    for(auto &light: scene->lights)
+    for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++ lightIndex)
     {
+        Light &light = scene->lights.at(lightIndex);
         SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &light.cam.position,
                        SHADER_UNIFORM_VEC3);
         BeginTextureMode(light.shadowTexture);
         {
-            ClearBackground(RAYWHITE);
+            ClearBackground(BLACK);
             BeginMode3D(light.cam);
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
+
                 for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
                     if (scene->gameObjects[model_index].depthIgnore)
                         continue;
@@ -129,6 +132,7 @@ void meshRenderer::shadowLoop()
                     }
                     DrawModelEx(scene->gameObjects[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
                 }
+
                 for (size_t cu = 0; cu < game->customers.size(); ++cu) {
                     if (game->customers[cu].active) {
                         float clicked = game->customers[cu].clicked ? 1 : 0;
@@ -136,85 +140,82 @@ void meshRenderer::shadowLoop()
                     }
                 }
             }
-            EndMode3D();
-            EndTextureMode();
             light.projectionMatrix = MatrixMultiply(lightView, lightProj);
+            EndMode3D();
+
         }
+        EndTextureMode();
     }
     //EndDrawing();
+    rlEnableBackfaceCulling();
+    rlSetCullFace(RL_CULL_FACE_BACK);
 }
 
 void meshRenderer::lightLoop()
 {
-    RenderTexture& screenTexture = renTextures.at(0);
-    // light & color
     viewPos = scene->mainCam.position;
     viewDir = Vector3Normalize(scene->mainCam.target - viewPos);
     Shader coolShader = shader[RenderState::light];
-    SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3, 1);
-    SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3, 1);
 
-    Vector3 lightPosis[scene->lights.size()];
-    for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
-    {
-        lightPosis[lightIndex] = (scene->lights[lightIndex].cam.position);
-    }
+    RenderTexture screenTexture = renTextures.at(0);
+    SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "viewPos"), &viewPos, SHADER_UNIFORM_VEC3);
+    SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3);
+    SetShaderValue(coolShader, rlGetLocationUniform(coolShader.id, "shadowMapResolution"), &shadowMapResolution, SHADER_UNIFORM_FLOAT);
     defaultMat.shader = coolShader;
     for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
+        Vector3 trans = scene->gameObjects[gO].translation;
         for (size_t ma = 0; ma < scene->gameObjects[gO].model.materialCount; ++ma) {
             scene->gameObjects[gO].model.materials[ma].shader = coolShader;
         }
     }
-    if(scene->lights.size() > 0)
-    {
-        SetShaderValueV(coolShader, rlGetLocationUniform(coolShader.id, "lightPos"),
-                        &lightPosis, SHADER_UNIFORM_VEC3, scene->lights.size());
-        SetShaderValueMatrix(coolShader, rlGetLocationUniform(coolShader.id, "lightViewProj"),
-                             scene->lights.at(0).projectionMatrix);
-    }
-    // rlEnableBackfaceCulling();
-    rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
+
+    //rlEnableBackfaceCulling();
+    //rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
+
     BeginTextureMode(screenTexture);
     {
-        ClearBackground(RAYWHITE);
+
+        BeginTextureMode(screenTexture);
+        ClearBackground(BLACK);
 
         BeginMode3D(scene->mainCam);
-        {
-            for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
-                
-                Vector3 trans = scene->gameObjects[gO].translation;
-                if (scene->gameObjects[gO].animations.size() > 0) {
-                    float frame = scene->gameObjects[gO].animationsFrame;
-                    updateObjectTransformByAnim(&trans, gO, frame);
-                }
-                for (size_t index = 0; index < scene->gameObjects[gO].model.meshCount; ++index)
-                {
-                    auto* model = &scene->gameObjects[gO].model;
-                    Material* material = &model->materials[model->meshMaterial[index]]; 
-                    SetShaderValue(material->shader, GetShaderLocation(material->shader, "shadowMapResolution"), &shadowMapResolution, SHADER_UNIFORM_FLOAT);
-                    for(int lightIndex = 0 ; lightIndex < scene->lights.size(); ++lightIndex)
-                    {
-                        SetShaderValueTexture(material->shader, GetShaderLocation(material->shader, "shadow0")+lightIndex, scene->lights[lightIndex].shadowTexture.texture);
-                    }
-                }
 
-                DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
-            }
-            float clicked = 0;
-            for (size_t cu = 0; cu < game->customers.size(); ++cu) {
-                if (game->customers[cu].active) {
-                    clicked = game->customers[cu].clicked ? 1 : 0;
-                    SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked,
-                                   SHADER_UNIFORM_FLOAT);
-                    DrawMesh(*game->customers[cu].mesh, defaultMat, scene->customersSpawnPoints.transform);
-                }
-            }
-            clicked = 0;
-            SetShaderValue(coolShader, GetShaderLocation(coolShader, "selected"), &clicked, SHADER_UNIFORM_FLOAT);
+        rlDisableColorBlend();
+        for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO)
+        {
+            DrawModelEx(
+                scene->gameObjects[gO].model,
+                scene->gameObjects[gO].translation,
+                Vector3{0,0,0}, 1.0f,
+                Vector3{1,1,1},
+                WHITE
+            );
         }
-        // Draw lightSphere
-        for (auto light : scene->lights) {
-            DrawSphere(light.cam.position, 0.2f, BLUE);
+        rlEnableColorBlend();
+        rlSetBlendMode(RL_BLEND_ADDITIVE);
+        for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
+        {
+            Light &light = scene->lights[lightIndex];
+            BeginShaderMode(coolShader);
+            {
+                SetShaderValueMatrix(coolShader,GetShaderLocation(coolShader, "lightViewProj"), light.projectionMatrix);
+                SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightPos"),&light.cam.position, SHADER_UNIFORM_VEC3);
+                SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
+                
+                for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
+                    Vector3 trans = scene->gameObjects[gO].translation;
+                    DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, BLACK);
+                }
+                
+                DrawSphere(scene->lights[lightIndex].cam.position, 0.2f, BLUE);
+            }
+            EndShaderMode();
+        }
+        rlDisableColorBlend();
+        for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
+        {
+            Light &light = scene->lights[lightIndex];
+            DrawSphere(scene->lights[lightIndex].cam.position, 0.2f, BLUE);
         }
         EndMode3D();
     }
@@ -225,26 +226,27 @@ void meshRenderer::screenLoop()
 {
     Shader screenShader = shader[RenderState::screen];
     RenderTexture screenTexture = renTextures.at(0);
-    
-    // screentexture
-    //BeginDrawing();
-    {
-        ClearBackground(RAYWHITE);
 
-        BeginShaderMode(screenShader);
+    BeginDrawing(); 
+    // screentexture
+    ClearBackground(BLACK);
+
+    BeginShaderMode(screenShader);
+    {
+        //BeginBlendMode(BLEND_MULTIPLIED);
+        //for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
+        
         {
+            //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
             SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
             DrawTextureRec(screenTexture.texture,
                            Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                            Vector2{0, 0}, WHITE);
-            auto texture = scene->lights[0].shadowTexture.texture;
-            DrawTextureRec(texture,
-                           Rectangle{0, 0, (float)texture.width, (float)-texture.height},
-                           Vector2{0, 0}, WHITE);
         }
-        EndShaderMode();
+        //EndBlendMode();
     }
-    //EndDrawing();
+    EndShaderMode();
+    EndDrawing();
 }
 
 RenderTexture2D meshRenderer::LoadRenderTextureWithDepth(int width, int height) {

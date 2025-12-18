@@ -8,12 +8,12 @@ in vec3 fragPosition;
 
 // Input uniform values
 uniform sampler2D texture0;
-uniform sampler2D shadow0[3];
+uniform sampler2D shadow0;
 
 uniform float fragTime;
 uniform vec3 viewPos;
 uniform vec3 viewDir;
-uniform vec3 lightPos[3];
+uniform vec3 lightPos;
 uniform float shadowMapResolution;
 uniform mat4 lightViewProj;
 
@@ -22,30 +22,29 @@ out vec4 finalColor;
 
 void main()
 {
-    vec3 result = vec3(1);
-    float textureMesh = texture(texture0, fragTexCoord).a;
+    vec4 textureMesh = texture(texture0, fragTexCoord);
+    vec3 result = textureMesh.xyz;
     vec3 N = normalize(fragNormal);
-    for(int lightIndex = 0; lightIndex < 1; lightIndex++)
+    vec3 L = normalize(lightPos - fragPosition);
+
+    vec4 fragPosLightSpace = lightViewProj * vec4(fragPosition, 1);
+    fragPosLightSpace.xyz /= fragPosLightSpace.w;
+    fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
+
+    vec2 shadowUVCoord = fragPosLightSpace.xy;
+    float shadowDepth = fragPosLightSpace.z;
+    float shadow     = texture(shadow0, shadowUVCoord).x;
+
+    float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
+    int shadowCounter = 0;
+    vec2 texelSize = vec2(1.0/float(shadowMapResolution));
+    float sampleDepth = texture(shadow0, shadowUVCoord).r;
+
+    if(sampleDepth <= bias)
     {
-        vec3 L = normalize(lightPos[lightIndex] - fragPosition);
-
-        //shadow
-        vec4 fragPosLightSpace = lightViewProj[lightIndex] * vec4(fragPosition, 1);
-        fragPosLightSpace.xyz /= fragPosLightSpace.w;
-        fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
-
-        vec2 shadowUVCoord = fragPosLightSpace.xy;
-        float shadowDepth = fragPosLightSpace.z;
-        float shadow     = texture(shadow0[lightIndex], shadowUVCoord).x;
-
-        float bias = max(0.0002*(1.0 - dot(N, L)), 0.00002) + 0.00001;
-        vec2 texelSize = vec2(1.0/float(shadowMapResolution));
-
-        if((shadow <= bias || shadow < 0.2))
-        {
-            result *= shadow;
-        }
+        result *= sampleDepth;
     }
-
-    finalColor = vec4(result, textureMesh);
+    //result = textureMesh.xyz * result;
+    result = pow(result, vec3(1.0/2.2f));
+    finalColor = vec4(result/3.0f, textureMesh.a);
 }

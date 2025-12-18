@@ -19,7 +19,6 @@ uniform float fragTime;
 uniform vec3 viewPos;
 uniform vec3 viewDir;
 uniform vec3 lightPos[3];
-uniform mat4 lightViewProj;
 uniform float selected;
 
 // Output fragment color
