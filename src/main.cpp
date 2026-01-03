@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <string>
 #include "window.cpp"
 
 int main(int argc, char *argv[]) {

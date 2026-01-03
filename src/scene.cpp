@@ -44,7 +44,7 @@ Scene::Scene(std::string n):name{n}{
     lightCam->projection = CAMERA_ORTHOGRAPHIC;
     lightCam->up = Vector3{0, 1, 0};
     lightCam->fovy = 20.0f;
-    /*
+    
     lights.emplace_back(Light{});
     lightCam = &lights.back().cam;
     lightCam->position = Vector3{2.573f, 3.8829f, 6.510f};
@@ -60,7 +60,7 @@ Scene::Scene(std::string n):name{n}{
     lightCam->projection = CAMERA_ORTHOGRAPHIC;
     lightCam->up = Vector3{0, 1, 0};
     lightCam->fovy = 20.0f;
-    */
+    
 }
 
 Scene::~Scene() {

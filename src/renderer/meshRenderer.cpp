@@ -27,7 +27,7 @@ public:
     Scene* scene = nullptr;
 
     Texture2D colorMap;
-    int shadowMapResolution = 512;
+    int shadowMapResolution = 2048;
 
 
 private:
@@ -90,7 +90,7 @@ void meshRenderer::Close(){
 void meshRenderer::shadowLoop()
 {
     // shadowRender
-    rlDisableBackfaceCulling();
+    rlEnableBackfaceCulling();
     rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
     Matrix lightProj;
     Matrix lightView;
@@ -115,7 +115,7 @@ void meshRenderer::shadowLoop()
                        SHADER_UNIFORM_VEC3);
         BeginTextureMode(light.shadowTexture);
         {
-            ClearBackground(BLACK);
+            ClearBackground(WHITE);
             BeginMode3D(light.cam);
             {
                 lightView = rlGetMatrixModelview();
@@ -147,7 +147,7 @@ void meshRenderer::shadowLoop()
         EndTextureMode();
     }
     //EndDrawing();
-    rlEnableBackfaceCulling();
+    rlDisableBackfaceCulling();
     rlSetCullFace(RL_CULL_FACE_BACK);
 }
 
@@ -170,20 +170,21 @@ void meshRenderer::lightLoop()
     }
 
     //rlEnableBackfaceCulling();
-    //rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
+    rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT);
 
     BeginTextureMode(screenTexture);
     {
-
-        BeginTextureMode(screenTexture);
+        //rlClearScreenBuffers();
         ClearBackground(BLACK);
 
+        BeginShaderMode(shader[RenderState::shadow]);
         BeginMode3D(scene->mainCam);
 
+        rlEnableDepthTest();
         rlDisableColorBlend();
         for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO)
         {
-            DrawModelEx(
+             DrawModelEx(
                 scene->gameObjects[gO].model,
                 scene->gameObjects[gO].translation,
                 Vector3{0,0,0}, 1.0f,
@@ -191,27 +192,40 @@ void meshRenderer::lightLoop()
                 WHITE
             );
         }
+        EndMode3D();
+        EndShaderMode();
+        
+        BeginMode3D(scene->mainCam);
         rlEnableColorBlend();
         rlSetBlendMode(RL_BLEND_ADDITIVE);
         for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
         {
+            
             Light &light = scene->lights[lightIndex];
             BeginShaderMode(coolShader);
             {
                 SetShaderValueMatrix(coolShader,GetShaderLocation(coolShader, "lightViewProj"), light.projectionMatrix);
                 SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightPos"),&light.cam.position, SHADER_UNIFORM_VEC3);
+                auto shadow0loc = GetShaderLocation(coolShader, "shadow0");
                 SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
                 
                 for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
                     Vector3 trans = scene->gameObjects[gO].translation;
-                    DrawModelEx(scene->gameObjects[gO].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, BLACK);
+                    auto &model = scene->gameObjects[gO].model;
+                    for (size_t meshIndex = 0; meshIndex < model.meshCount; ++meshIndex) {
+                        model.materials[model.meshMaterial[meshIndex]].shader.locs[1] = shadow0loc;
+                        model.materials[model.meshMaterial[meshIndex]].maps[1].texture = light.shadowTexture.depth;
+                        DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], model.transform);
+                    }
                 }
-                
-                DrawSphere(scene->lights[lightIndex].cam.position, 0.2f, BLUE);
             }
             EndShaderMode();
         }
+        rlDisableDepthTest();
         rlDisableColorBlend();
+        EndMode3D();
+
+        BeginMode3D(scene->mainCam);
         for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
         {
             Light &light = scene->lights[lightIndex];
@@ -229,13 +243,12 @@ void meshRenderer::screenLoop()
 
     BeginDrawing(); 
     // screentexture
-    ClearBackground(BLACK);
+    ClearBackground(WHITE);
 
     BeginShaderMode(screenShader);
     {
         //BeginBlendMode(BLEND_MULTIPLIED);
         //for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
-        
         {
             //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
             SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
@@ -243,7 +256,7 @@ void meshRenderer::screenLoop()
                            Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                            Vector2{0, 0}, WHITE);
         }
-        //EndBlendMode();
+        EndBlendMode();
     }
     EndShaderMode();
     EndDrawing();

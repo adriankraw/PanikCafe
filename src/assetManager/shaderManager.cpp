@@ -1,6 +1,5 @@
 
 #include "assetManager.cpp"
-#include <_strings.h>
 #include <raylib.h>
 
 class shaderManager : public assetManager<Shader>{

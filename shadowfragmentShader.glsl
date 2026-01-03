@@ -23,7 +23,7 @@ out vec4 finalColor;
 void main()
 {
     vec4 textureMesh = texture(texture0, fragTexCoord);
-    vec3 result = textureMesh.xyz;
+    vec3 result = vec3(1);
     vec3 N = normalize(fragNormal);
     vec3 L = normalize(lightPos - fragPosition);
 
@@ -40,11 +40,26 @@ void main()
     vec2 texelSize = vec2(1.0/float(shadowMapResolution));
     float sampleDepth = texture(shadow0, shadowUVCoord).r;
 
-    if(sampleDepth <= bias)
+    float shadowcount = 0;
+
+    for(int x = -1; x < 1 ; ++x)
     {
-        result *= sampleDepth;
+        for(int y = -1; y < 1; ++y)
+        {
+            float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)/texelSize)).x;
+            if( shadow_nn <= bias)
+            {
+                shadowcount++;
+                shadow += shadow_nn;
+            }
+        }
     }
-    //result = textureMesh.xyz * result;
-    result = pow(result, vec3(1.0/2.2f));
-    finalColor = vec4(result/3.0f, textureMesh.a);
+
+    if(shadowcount > 3)
+    {
+        result += max(shadow, 0.00001)/shadowcount;
+    }else{
+        result = vec3(0);
+    }
+    finalColor = vec4(result, textureMesh.a);
 }
