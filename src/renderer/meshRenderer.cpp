@@ -175,13 +175,14 @@ void meshRenderer::lightLoop()
     BeginTextureMode(screenTexture);
     {
         //rlClearScreenBuffers();
-        ClearBackground(BLACK);
+        ClearBackground(WHITE);
 
         BeginShaderMode(shader[RenderState::shadow]);
         BeginMode3D(scene->mainCam);
-
         rlEnableDepthTest();
-        rlDisableColorBlend();
+
+        rlEnableColorBlend();
+        BeginBlendMode(RL_BLEND_MULTIPLIED);
         for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO)
         {
              DrawModelEx(
@@ -196,18 +197,16 @@ void meshRenderer::lightLoop()
         EndShaderMode();
         
         BeginMode3D(scene->mainCam);
-        rlEnableColorBlend();
-        rlSetBlendMode(RL_BLEND_ADDITIVE);
         for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
         {
             
             Light &light = scene->lights[lightIndex];
+            SetShaderValueMatrix(coolShader,GetShaderLocation(coolShader, "lightViewProj"), light.projectionMatrix);
+            SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightPos"),&light.cam.position, SHADER_UNIFORM_VEC3);
+            auto shadow0loc = GetShaderLocation(coolShader, "shadow0");
+            SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
             BeginShaderMode(coolShader);
             {
-                SetShaderValueMatrix(coolShader,GetShaderLocation(coolShader, "lightViewProj"), light.projectionMatrix);
-                SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightPos"),&light.cam.position, SHADER_UNIFORM_VEC3);
-                auto shadow0loc = GetShaderLocation(coolShader, "shadow0");
-                SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
                 
                 for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
                     Vector3 trans = scene->gameObjects[gO].translation;
@@ -221,8 +220,8 @@ void meshRenderer::lightLoop()
             }
             EndShaderMode();
         }
-        rlDisableDepthTest();
         rlDisableColorBlend();
+        //rlEnableDepthTest();
         EndMode3D();
 
         BeginMode3D(scene->mainCam);
@@ -283,6 +282,8 @@ RenderTexture2D meshRenderer::LoadRenderTextureWithDepth(int width, int height) 
         target.depth.height = height;
         target.depth.format = PIXELFORMAT_UNCOMPRESSED_R32;
         target.depth.mipmaps = 1;
+        rlTextureParameters(target.depth.id, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_CLAMP);
+        rlTextureParameters(target.depth.id, RL_TEXTURE_WRAP_T, RL_TEXTURE_WRAP_CLAMP);
 
         // Attach color texture and depth texture to FBO
         rlFramebufferAttach(target.id, target.texture.id, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);

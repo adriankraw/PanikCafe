@@ -15,7 +15,7 @@ uniform vec4 lightColor;
 uniform int shadowMapResolution;
 
 float minclamp = 0.000001f;
-float maxclamp = 100000.000f;
+float maxclamp = 10000.000f;
 
 void main()
 {
@@ -24,7 +24,7 @@ void main()
     depth = normalize(gl_FragCoord).z;
     if(depth < 1)
     {
-        depth = -(log2(-depth+1)/8.0);
+        depth = -(log2(-depth+1)/12.0);
         depth = clamp(depth,0.0,1.0);
     }else{
         depth = 1;
