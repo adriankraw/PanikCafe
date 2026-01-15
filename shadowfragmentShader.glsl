@@ -66,6 +66,10 @@ void main()
     {
         result = vec3(0);
     }
+    if(result.r+result.g+result.b < 0.01f)
+    {
+        discard;
+    }
 
     finalColor = vec4(result, textureMesh.a);
 }

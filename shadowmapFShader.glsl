@@ -8,7 +8,7 @@ in vec2 fragShadowTexCoord;
 
 uniform sampler2D texture0;
 
-out vec4 finalColor;
+//out vec4 finalColor;
 uniform vec3 lightDir;
 uniform vec4 lightColor;
 
@@ -19,7 +19,7 @@ float maxclamp = 10000.000f;
 
 void main()
 {
-    finalColor = fragColor * texture(texture0, fragTexCoord);
+    //finalColor = fragColor * texture(texture0, fragTexCoord);
     float depth = fragShadowDepth;
     depth = normalize(gl_FragCoord).z;
     if(depth < 1)
@@ -33,5 +33,5 @@ void main()
     depth /= (1/maxclamp-1/minclamp);
 
     gl_FragDepth = (depth);
-    finalColor = vec4(vec3(depth),1.0f);
+    //finalColor = vec4(vec3(depth),1.0f);
 }

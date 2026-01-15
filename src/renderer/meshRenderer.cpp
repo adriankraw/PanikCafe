@@ -174,37 +174,36 @@ void meshRenderer::lightLoop()
 
     BeginTextureMode(screenTexture);
     {
-        //rlClearScreenBuffers();
-        ClearBackground(WHITE);
+        // rlClearScreenBuffers();
+        ClearBackground(BLACK);
 
         BeginShaderMode(shader[RenderState::shadow]);
         BeginMode3D(scene->mainCam);
-        rlEnableDepthTest();
+        //rlEnableDepthTest();
 
         rlEnableColorBlend();
-        BeginBlendMode(RL_BLEND_MULTIPLIED);
-        for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO)
-        {
-             DrawModelEx(
-                scene->gameObjects[gO].model,
-                scene->gameObjects[gO].translation,
-                Vector3{0,0,0}, 1.0f,
-                Vector3{1,1,1},
-                WHITE
-            );
+        //BeginBlendMode(RL_BLEND_ADD_COLORS);
+        for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
+            DrawModelEx(scene->gameObjects[gO].model, scene->gameObjects[gO].translation, Vector3{0, 0, 0}, 1.0f,
+                        Vector3{1, 1, 1}, WHITE);
         }
         EndMode3D();
         EndShaderMode();
+    }
+    EndTextureMode();
         
-        BeginMode3D(scene->mainCam);
-        for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
-        {
+    for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
+    {
+        Light &light = scene->lights[lightIndex];
+        BeginTextureMode(light.shadowsCalculated);
+            ClearBackground(BLACK);
+            BeginMode3D(scene->mainCam);
             
-            Light &light = scene->lights[lightIndex];
             SetShaderValueMatrix(coolShader,GetShaderLocation(coolShader, "lightViewProj"), light.projectionMatrix);
             SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightPos"),&light.cam.position, SHADER_UNIFORM_VEC3);
             auto shadow0loc = GetShaderLocation(coolShader, "shadow0");
             SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
+            coolShader.locs[1] = shadow0loc;
             BeginShaderMode(coolShader);
             {
                 
@@ -212,26 +211,40 @@ void meshRenderer::lightLoop()
                     Vector3 trans = scene->gameObjects[gO].translation;
                     auto &model = scene->gameObjects[gO].model;
                     for (size_t meshIndex = 0; meshIndex < model.meshCount; ++meshIndex) {
-                        model.materials[model.meshMaterial[meshIndex]].shader.locs[1] = shadow0loc;
+                        //model.materials[model.meshMaterial[meshIndex]].shader.locs[1] = shadow0loc;
                         model.materials[model.meshMaterial[meshIndex]].maps[1].texture = light.shadowTexture.depth;
                         DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], model.transform);
                     }
                 }
             }
             EndShaderMode();
-        }
-        rlDisableColorBlend();
+            EndMode3D();
+        EndTextureMode();
+    }
+    EndBlendMode();
+    rlDisableColorBlend();
         //rlEnableDepthTest();
-        EndMode3D();
+    BeginTextureMode(screenTexture);
+        rlEnableColorBlend();
+        BeginBlendMode(RL_BLEND_ADD_COLORS);
+
+        for (size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex) {
+            DrawTexturePro(scene->lights[lightIndex].shadowsCalculated.texture,
+                           Rectangle{0, 0, (float)scene->lights[lightIndex].shadowsCalculated.texture.width,
+                                     (float)-scene->lights[lightIndex].shadowsCalculated.texture.height},
+                           Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
+                           Vector2{0, 0}, 0.0f, WHITE);
+        }
 
         BeginMode3D(scene->mainCam);
+        EndBlendMode();
+        rlDisableColorBlend();
         for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
         {
             Light &light = scene->lights[lightIndex];
             DrawSphere(scene->lights[lightIndex].cam.position, 0.2f, BLUE);
         }
         EndMode3D();
-    }
     EndTextureMode();
 }
 
