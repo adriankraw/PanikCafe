@@ -111,8 +111,7 @@ void meshRenderer::shadowLoop()
     for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++ lightIndex)
     {
         Light &light = scene->lights.at(lightIndex);
-        SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "lightPos"), &light.cam.position,
-                       SHADER_UNIFORM_VEC3);
+
         BeginTextureMode(light.shadowTexture);
         {
             ClearBackground(WHITE);
@@ -120,9 +119,12 @@ void meshRenderer::shadowLoop()
             {
                 lightView = rlGetMatrixModelview();
                 lightProj = rlGetMatrixProjection();
+                light.projectionMatrix = MatrixMultiply(lightView, lightProj);
+                SetShaderValueMatrix(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "matLightVP"),
+                               light.projectionMatrix);
 
                 for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
-                    if (scene->gameObjects[model_index].depthIgnore)
+                    if (scene->gameObjects[model_index].depthIgnore && false)
                         continue;
 
                     Vector3 trans = scene->gameObjects[model_index].translation;
@@ -140,7 +142,6 @@ void meshRenderer::shadowLoop()
                     }
                 }
             }
-            light.projectionMatrix = MatrixMultiply(lightView, lightProj);
             EndMode3D();
 
         }
@@ -226,16 +227,27 @@ void meshRenderer::lightLoop()
         //rlEnableDepthTest();
     BeginTextureMode(screenTexture);
         rlEnableColorBlend();
-        BeginBlendMode(RL_BLEND_ADD_COLORS);
-
+        BeginBlendMode(RL_BLEND_ADDITIVE);
+        ////////////////////////////////////////////////////////////////////////////////
+        // SHADOWS
+        ////////////////////////////////////////////////////////////////////////////////
         for (size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex) {
-            DrawTexturePro(scene->lights[lightIndex].shadowsCalculated.texture,
-                           Rectangle{0, 0, (float)scene->lights[lightIndex].shadowsCalculated.texture.width,
-                                     (float)-scene->lights[lightIndex].shadowsCalculated.texture.height},
+            Texture *shadowsCalculated = &scene->lights[lightIndex].shadowsCalculated.texture;
+            DrawTexturePro(*shadowsCalculated,
+                           Rectangle{0, 0, (float)shadowsCalculated->width, (float)-shadowsCalculated->height},
                            Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                            Vector2{0, 0}, 0.0f, WHITE);
         }
 
+        ////////////////////////////////////////////////////////////////////////////////
+        // PBR
+        ////////////////////////////////////////////////////////////////////////////////
+
+
+
+        ////////////////////////////////////////////////////////////////////////////////
+        // LIGHTBULB
+        ////////////////////////////////////////////////////////////////////////////////
         BeginMode3D(scene->mainCam);
         EndBlendMode();
         rlDisableColorBlend();

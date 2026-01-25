@@ -32,44 +32,57 @@ void main()
     fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
 
     vec2 shadowUVCoord = fragPosLightSpace.xy;
-    float shadowDepth = fragPosLightSpace.z;
-    float shadow     = texture(shadow0, shadowUVCoord).x;
+    float shadowDepth = (fragPosLightSpace.z)+0.5f;
+    float shadow     = 0;
 
     float bias = max(0.005*(1.0 - dot(N, L)), 0.00002) + 0.00001;
     int shadowCounter = 0;
-    vec2 texelSize = vec2(1.0/float(shadowMapResolution));
+    vec2 texelSize = vec2(1.0/float(2048));
     float sampleDepth = texture(shadow0, shadowUVCoord).r;
 
-	float rec = length(L);
-	float blo = shadowDepth;
-	float pcff_range = (rec - blo)*0.015/blo;
+	float rec = shadowDepth;
+	float blo = 0;
+	int blockerCount = 0;
+    float blockRange = 3.0f;
+	for(float x = -blockRange; x <= blockRange; x+= 1.0f)
+	{
+		for(float y = -blockRange; y <= blockRange; y+= 1.0f)
+		{
+			float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
+			if(shadowDepth > shadow_nn)
+			{
+				blo += 1.0f;
+				blockerCount++;
+			}
+		}
+	}
+
+	blo= blo/blockerCount;
+	if(blockerCount == 0)
+	{	
+		finalColor = vec4(vec3(1),1); 
+		return;
+	}
+	float pcff_range = (rec - blo)*2.0f/blo;
 
 	int range = int(pcff_range);
-	range = range<1 ?2 :range;
-	range = range>40?40:range;
+	range = clamp(range, 2, 16);
 
-    for(int x = -range; x < range; ++x)
+    for(int x = -range; x <= range; ++x)
     {
-        for(int y = -range; y < range; ++y)
+        for(int y = -range; y <= range; ++y)
         {
             float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
-			if(shadowDepth - bias > shadow_nn)
+			if(shadowDepth > shadow_nn)			if(shadowDepth > shadow_nn)
             {
-                shadow += 1.0f;
+                shadow += shadow_nn;
             }
         }
     }
+	if(shadow > 0){
+		result = vec3(shadow/((1+range+range)*(1+range+range)));
+	}
 
-    result = vec3(shadow/pow(range+1.0f+range,2));
 
-    if(shadowDepth > 1.0)
-    {
-        result = vec3(0);
-    }
-    if(result.r+result.g+result.b < 0.01f)
-    {
-        discard;
-    }
-
-    finalColor = vec4(result, textureMesh.a);
+    finalColor = vec4(result, 1);
 }

@@ -60,6 +60,7 @@ void window::Init(int width, int height, const std::string title) {
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(60);
+    rlSetClipPlanes(5.0f, 60.0f);
 
     float shadowMapResolution = 512 * 2;
 

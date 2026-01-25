@@ -11,7 +11,6 @@
 #include "customer.cpp"
 #include "gameObject.cpp"
 #include "scene.cpp"
-#include <raylib.h>
 
 
 class Game {
