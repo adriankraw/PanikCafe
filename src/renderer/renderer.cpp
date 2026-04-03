@@ -1,6 +1,9 @@
 #pragma once
-#include <map>
+#include <cstddef>
+#include <vector>
+
 #include <raylib.h>
+#include <rlgl.h>
 
 class renderer {
 public:
@@ -13,12 +16,35 @@ public:
     enum RenderState{
         light,
         shadow,
+        pbr,
         screen,
     };
 
-    std::map<RenderState,Shader> shader{};
-    std::map<RenderState,RenderTexture2D> renderTextureIn{};
-    std::map<RenderState,RenderTexture2D> renderTextureOut{};
+    struct RenderLayer{
+        char name[64];
+        bool clearBackground;
+        int cullMode;
+        int blendMode;
+        int backgroundColor[4] {0,0,0,0};
+        Shader shader;
+        std::vector<RenderTexture2D> inputTexture{};
+        std::vector<RenderTexture2D> outputTexture{};
+    };
+
+    std::string blendmodes[8] = {
+        "ALPHA",
+        "ADDITIVE",
+        "MULTIPLIED",
+        "ADD_COLORS",
+        "SUBTRACT_COLORS",
+        "ALPHA_PREMULTIPLY",
+        "CUSTOM",
+        "CUSTOM_SEPARATE"
+    };
+    std::string cullmodes[2] = {
+        "FRONT",
+        "BACK"
+    };
 
 private:
     

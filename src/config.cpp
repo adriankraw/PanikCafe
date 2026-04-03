@@ -1,5 +1,8 @@
 #pragma once
+
 #include <memory>
+#include <string>
+
 #include <raylib.h>
 
 class config {
@@ -9,7 +12,7 @@ public:
 
         return instance;
     }
-
+    std::string fontNormalPath = "./fonts/raleway-latin-500-normal.ttf";
     Font fontNormal;
 
 private:
@@ -21,6 +24,12 @@ public:
     void operator=(config const&) = delete;
 
     void LoadConfig(){
-        getInstance().fontNormal = LoadFont("./fonts/raleway-latin-500-normal.ttf");
+        getInstance().fontNormal = LoadFont(fontNormalPath.c_str());
+        if (!IsWindowState(FLAG_WINDOW_HIGHDPI))
+        {
+            getInstance().fontNormal.baseSize = 16 * GetWindowScaleDPI().y;
+        }else{
+            getInstance().fontNormal.baseSize = 16;
+        }
     }
 };

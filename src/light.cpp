@@ -10,6 +10,7 @@ class Light {
     float amplitude = 1;
     Matrix projectionMatrix{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     RenderTexture2D shadowTexture{0};
+    RenderTexture2D shadowsCalculated{0};
 
     Light() {};
     Light(const Light&) = default;

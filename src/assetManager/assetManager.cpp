@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 template<typename T>
 class assetManager {
