@@ -19,6 +19,8 @@ uniform float fragTime;
 uniform vec3 viewPos;
 uniform vec3 viewDir;
 uniform vec3 lightPos[3];
+uniform vec3 lightColor[3];
+uniform float lightstrength[3];
 uniform float selected;
 
 // Output fragment color
@@ -29,7 +31,6 @@ const float PI = 3.14159265359;
 const float alphaCutout = 0.2f;
 const float minclamp = 0.0001f;
 const float maxclamp = 100.0f;
-const float lightstrength = 1.0f;
 
 
 float D(float alpha, vec3 N, vec3 H)
@@ -91,30 +92,18 @@ void main()
     {
         vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
         float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
-        vec3 lightColor = vec3(0,0,0);
-        if(lightIndex == 0)
-        {
-            lightColor = vec3(23.47, 0, 0) * lightstrength;
-        }
-        if(lightIndex == 1)
-        {
-            lightColor = vec3(0, 21.31, 0) * lightstrength;
-        }
-        if(lightIndex == 2)
-        {
-            lightColor = vec3(0, 0, 20.79) * lightstrength;
-        }
+
         float lightdistance = length(lightPos[lightIndex] - fragPosition);
         float attenuation = 1.0/(lightdistance * lightdistance);
-        vec3 radiance = lightColor * attenuation;
+        vec3 radiance = (lightColor[lightIndex] * 20.0f)/3.0f * lightstrength[lightIndex] * attenuation;
         vec3 emissivityMesh = vec3(0.0);
 
         vec3 N = normalize(fragNormal + normalMap);
         vec3 L = normalize(lightPos[lightIndex] - fragPosition);
         vec3 V = normalize(viewPos - fragPosition);
         vec3 H = normalize(L + V);
-        //vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
-        vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
+        vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
+        //vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
 
         vec3 Ks = F(F0, V, L, H); // specular
         vec3 Kd = vec3(1.0) - Ks; //diffuse

@@ -1,5 +1,4 @@
 #include "notification.cpp"
-#include "raylib.h"
 #include "../config.cpp"
 
 class InfoNotification : public notification{

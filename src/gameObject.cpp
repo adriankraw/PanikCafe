@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 
-#include "raylib.h"
+#include <raylib.h>
 
 class GameObject {
   public:

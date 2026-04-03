@@ -1,3 +1,4 @@
+#pragma once
 #include "./notif/notificationManager.cpp"
 #include "./assetManager/meshManager.cpp"
 #include "./assetManager/shaderManager.cpp"
@@ -5,13 +6,16 @@
 #include "./game.cpp"
 #include "./renderer/meshRenderer.cpp"
 #include "./renderer/uiRenderer.cpp"
+#include "./renderer/imguiRenderer.cpp"
 #include "./scene.cpp"
 #include "./input/inputManager.cpp"
 
+#include "./imgui/imgui.h"
+
 #include <raylib.h>
 #define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
 #include <raymath.h>
+
 #include <string>
 
 class window {
@@ -26,9 +30,12 @@ class window {
   private:
     meshRenderer meshrenderer{};
     uiRenderer UIrendererer{};
+    imguiRenderer imguiRenderer{};
 
     meshManager meshManager{};
     shaderManager shaderManager{};
+
+    RenderTexture2D renderTarget;
 
     Game game{};
     Scene mainscene{"mainScene"};
@@ -55,11 +62,21 @@ void window::Init(int width, int height, const std::string title) {
     UIrendererer.game = &game;
     meshrenderer.Init();
     UIrendererer.Init();
+    imguiRenderer.Init();
 
+    renderTarget = meshrenderer.LoadRenderTextureWithDepth(width, height);
+    meshrenderer.resultTexture = &renderTarget;
+
+    imguiRenderer.game = &game;
+    imguiRenderer.meshRenderer = &meshrenderer;
+    imguiRenderer.screenTexture = &renderTarget;
     inputManager->scene = &game.scenes.at(0);
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(60);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_HIGHDPI);
+
     rlSetClipPlanes(5.0f, 60.0f);
 
     float shadowMapResolution = 512 * 2;
@@ -70,43 +87,89 @@ void window::Init(int width, int height, const std::string title) {
     float uniformScale = 1.25f;
     float time = 0;
 
-    meshManager.Import("./CafeBarRoom.glb");
-    meshManager.Import("./CafeBar.glb");
-    meshManager.Import("./CafeBar_Event_Ball.glb");
-    meshManager.Import("./KitFox.glb");
-    meshManager.Import("./Customers.glb");
+    meshManager.Import("./Assets/models/CafeBarRoom.glb");
+    meshManager.Import("./Assets/models/CafeBar.glb");
+    meshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
+    meshManager.Import("./Assets/models/KitFox.glb");
+    meshManager.Import("./Assets/models/Customers.glb");
 
     game.scenes.at(0).LoadScene(&meshManager);
 
-    shaderManager.Import("./shadowmapVShader.glsl;./shadowmapFShader.glsl");
-    meshrenderer.shader.emplace(renderer::RenderState::shadow,shaderManager.list.back());
-    shaderManager.Import("./vertexShader.glsl;./shadowfragmentShader.glsl");
-    meshrenderer.shader.emplace(renderer::RenderState::light ,shaderManager.list.back());
-    shaderManager.Import(";./screenFragmentShader.glsl");
-    meshrenderer.shader.emplace(renderer::RenderState::screen,shaderManager.list.back());
-    UIrendererer.shader.emplace(renderer::RenderState::screen,shaderManager.list.back());
+    //Depth
+    shaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
+    game.layer[game.lastaddedLayer] = (renderer::RenderLayer{
+        .name ="Depth",
+        .clearBackground=true,
+        .cullMode=RL_CULL_FACE_FRONT,
+        .backgroundColor={255,255,255,1},
+        .shader=shaderManager.list.back(),
+    });
+    //Shadow
+    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
+    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
+        .name ="Shadow",
+        .clearBackground=true,
+        .cullMode=RL_CULL_FACE_FRONT,
+        .blendMode=RL_BLEND_MULTIPLIED,
+        .backgroundColor={255,255,255,1},
+        .shader=shaderManager.list.back(),
+    });
+    //pbr
+    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
+    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
+        .name ="Pbr",
+        .clearBackground=true,
+        .backgroundColor={0,0,0,1},
+        .shader=shaderManager.list.back(),
+    });
+    //screen
+    shaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
+    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
+        .name ="Screen",
+        .backgroundColor={0,0,0,1},
+        .shader=shaderManager.list.back(),
+    });
+    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
+        .name ="UI",
+        .backgroundColor={0,0,0,1},
+        .shader=shaderManager.list.back(),
+    });
 
-    meshrenderer.colorMap = LoadTexture("./texture/colorMap.png");
+    meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
 
-    //SetTraceLogLevel(LOG_WARNING);
+    SetTraceLogLevel(LOG_WARNING);
+   
+    GuiSetFont(config::getInstance().fontNormal);
+
+    static constexpr int DefaultFonSize = 11;
+    ImFontConfig defaultConfig;
+    defaultConfig.SizePixels = DefaultFonSize;
+
+    if (!IsWindowState(FLAG_WINDOW_HIGHDPI))
+    {
+        defaultConfig.SizePixels = defaultConfig.SizePixels * GetWindowScaleDPI().y;
+        defaultConfig.RasterizerMultiply = GetWindowScaleDPI().y;
+    }
+
+    defaultConfig.PixelSnapH = true;
 }
 
 void window::Loop() {
     Ray ray = {0};
     RayCollision collision = {0};
 
-    //prepass
-    meshrenderer.currentState = renderer::RenderState::shadow;
-    meshrenderer.Loop();
+    BeginDrawing();
+        ClearBackground(BLACK);
+        meshrenderer.Loop();
+        inputManager->Update();
 
-    inputManager->Update();
+        rlEnableColorBlend();
+        rlSetBlendMode(RL_BLEND_ALPHA);
+        UIrendererer.Loop();
+        imguiRenderer.Loop();
+        //rlDisableColorBlend();
+    EndDrawing();
 
-    meshrenderer.currentState = renderer::RenderState::light;
-    meshrenderer.Loop();
-
-    meshrenderer.currentState = renderer::RenderState::screen;
-    meshrenderer.Loop();
-    UIrendererer.Loop();
     /*
     Light *lightCam = &game.scenes[0].lights[0];
     ReadInput(&lightCam->cam.position, meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD

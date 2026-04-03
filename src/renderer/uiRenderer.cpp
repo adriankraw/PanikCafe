@@ -1,7 +1,8 @@
-#include "raylib.h"
+#pragma once
 #include "renderer.cpp"
 #include "../game.cpp"
 
+#define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 
 class uiRenderer : public renderer {
@@ -17,6 +18,15 @@ class uiRenderer : public renderer {
     RenderTexture2D screenTexture;
 
   private:
+    void DrawButton(Rectangle& buttonRect, std::string label, float duration, std::function<void()> function){
+        if (GuiButton(buttonRect, label.c_str())) {
+            if (game->playerActionStarted == false) {
+                game->playerActionDuration = duration;
+                game->playerAction.push(function);
+                game->playerActionStarted = true;
+            }
+        }
+    };
 };
 
 uiRenderer::uiRenderer() {}
@@ -35,96 +45,52 @@ void uiRenderer::Loop() {
     char timebuffer[6];
     std::strftime(timebuffer, sizeof(timebuffer), "%H:%M", std::localtime(&currentClock));
 
-    Rectangle buttonRect{30, 100, 100, 25};
-    Rectangle labelRect{150, 100, 100, 25};
-    if (GuiButton(buttonRect, "get Beans")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 1.0f;
-            game->playerAction.push([this]() { game->increaseBeanCount(); });
-            game->playerActionStarted = true;
-        }
-    }
+    Rectangle buttonRect{30, 100, 150*GetWindowScaleDPI().y, 30*GetWindowScaleDPI().y};
+    Rectangle labelRect{180*GetWindowScaleDPI().x, 100, 150*GetWindowScaleDPI().y, 30*GetWindowScaleDPI().y};
+
+    DrawButton(buttonRect, "get Beans", 1.0f, [this]() { game->increaseBeanCount(); });
     GuiLabel(labelRect, std::string("Beans: ").append(std::to_string(game->beansAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "grind beans")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 1.0f;
-            game->playerAction.push([this]() { game->grindBeans(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "grind beans", 1.0f, [this]() { game->grindBeans(); });
     GuiLabel(labelRect, std::string("Grind. beans: ").append(std::to_string(game->grindedBeansAmount)).c_str());
-    buttonRect.y += 50;
-    labelRect.y += 50;
-    if (GuiButton(buttonRect, "Small Cups")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 2.0f;
-            game->playerAction.push([this]() { game->increaseSmallCups(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "Small Cups", 2.0f, [this]() {game->increaseSmallCups();});
     GuiLabel(labelRect, std::string("Small Cups: ").append(std::to_string(game->smallCupsAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "Large Cups")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 2.0f;
-            game->playerAction.push([this]() { game->increaseBigCups(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "Large Cups", 2.0f, [this]() {game->increaseBigCups();});
     GuiLabel(labelRect, std::string("Large Cups: ").append(std::to_string(game->bigCupsAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "cow Milk")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 2.0f;
-            game->playerAction.push([this]() { game->increaseCowMilkCount(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "Cow Milk", 2.0f, [this]() {game->increaseCowMilkCount();});
     GuiLabel(labelRect, std::string("Cow Milk: ").append(std::to_string(game->cowMilkAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "oat Milk")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 2.0f;
-            game->playerAction.push([this]() { game->increaseOatMilkCount(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40; 
+    DrawButton(buttonRect, "oat Milk", 2.0f, [this]() { game->increaseOatMilkCount(); });
     GuiLabel(labelRect, std::string("Oat Milk: ").append(std::to_string(game->oatMilkAmount)).c_str());
-    buttonRect.y += 50;
-    labelRect.y += 50;
-    if (GuiButton(buttonRect, "Espresso")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 32.0f;
-            game->playerAction.push([this]() { game->increaseEspressoAmount(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "Espresso", 32.0f, [this]() { game->increaseEspressoAmount(); });
     GuiLabel(labelRect, std::string("Espresso: ").append(std::to_string(game->madeEspressoAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "Latte")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 40.0f;
-            game->playerAction.push([this]() { game->increaseLatteAmount(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "Latte", 40.0f, [this]() { game->increaseLatteAmount(); });
     GuiLabel(labelRect, std::string("Late: ").append(std::to_string(game->madeLatteAmount)).c_str());
-    buttonRect.y += 30;
-    labelRect.y += 30;
-    if (GuiButton(buttonRect, "LongCafe")) {
-        if (game->playerActionStarted == false) {
-            game->playerActionDuration = 50.0f;
-            game->playerAction.push([this]() { game->increaseLongCafeAmount(); });
-            game->playerActionStarted = true;
-        }
-    }
+
+    buttonRect.y += 40;
+    labelRect.y += 40;
+    DrawButton(buttonRect, "LongCafe", 50.0f, [this]() { game->increaseLongCafeAmount(); });
     GuiLabel(labelRect, std::string("Long Cafe: ").append(std::to_string(game->madeLongCafeAmount)).c_str());
+
     buttonRect.y += 60;
     labelRect.y += 60;
     if (GuiButton(buttonRect, "serve")) {

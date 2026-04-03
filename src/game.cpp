@@ -1,6 +1,4 @@
 #pragma once
-#include "raylib.h"
-#include "rlgl.h"
 
 #include <array>
 #include <cstddef>
@@ -11,7 +9,12 @@
 #include "customer.cpp"
 #include "gameObject.cpp"
 #include "scene.cpp"
+#include "renderer/renderer.cpp"
 
+#include <raylib.h>
+#include <rlgl.h>
+
+#define LAYER_MAX 100
 
 class Game {
   public:
@@ -40,6 +43,8 @@ class Game {
 
     std::vector<GameObject> meshes;
     std::vector<Scene> scenes;
+    renderer::RenderLayer layer[LAYER_MAX];
+    int lastaddedLayer;
 
 
     std::string playerName{"playerName"};

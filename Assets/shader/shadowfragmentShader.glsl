@@ -10,12 +10,11 @@ in vec3 fragPosition;
 uniform sampler2D texture0;
 uniform sampler2D shadow0;
 
-uniform float fragTime;
-uniform vec3 viewPos;
-uniform vec3 viewDir;
 uniform vec3 lightPos;
+uniform vec3 lightColor;
 uniform float shadowMapResolution;
 uniform mat4 lightViewProj;
+uniform float amplitude;
 
 // Output fragment color
 out vec4 finalColor;
@@ -37,52 +36,53 @@ void main()
 
     float bias = max(0.005*(1.0 - dot(N, L)), 0.00002) + 0.00001;
     int shadowCounter = 0;
-    vec2 texelSize = vec2(1.0/float(2048));
-    float sampleDepth = texture(shadow0, shadowUVCoord).r;
+    vec2 texelSize = vec2(1.0/shadowMapResolution);
 
-	float rec = shadowDepth;
-	float blo = 0;
-	int blockerCount = 0;
+    float rec = shadowDepth;
+    float blo = 0;
+    int blockerCount = 0;
     float blockRange = 3.0f;
-	for(float x = -blockRange; x <= blockRange; x+= 1.0f)
+    for(float x = -blockRange; x <= blockRange; x+= 1.0f)
+    {
+	for(float y = -blockRange; y <= blockRange; y+= 1.0f)
 	{
-		for(float y = -blockRange; y <= blockRange; y+= 1.0f)
-		{
-			float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
-			if(shadowDepth > shadow_nn)
-			{
-				blo += 1.0f;
-				blockerCount++;
-			}
-		}
+	    float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
+	    if(shadowDepth > shadow_nn)
+	    {
+		    blo += shadow_nn;
+		    blockerCount++;
+	    }
 	}
+    }
 
-	blo= blo/blockerCount;
-	if(blockerCount == 0)
-	{	
-		finalColor = vec4(vec3(1),1); 
-		return;
-	}
-	float pcff_range = (rec - blo)*2.0f/blo;
+    int range = 0;
+    if(blockerCount > 0)
+    {
+	blo = blo/blockerCount;
+	float pcff_range = (rec - blo)*(amplitude/blo);
+	pcff_range *=25.0f;
+	//range is still not right 
 
-	int range = int(pcff_range);
-	range = clamp(range, 2, 16);
+	range = int(pcff_range);
+	range = clamp(range, 0, 16);
+    }
 
     for(int x = -range; x <= range; ++x)
     {
         for(int y = -range; y <= range; ++y)
         {
             float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
-			if(shadowDepth > shadow_nn)			if(shadowDepth > shadow_nn)
-            {
+	    if(shadowDepth - bias > shadow_nn){
                 shadow += shadow_nn;
             }
         }
     }
-	if(shadow > 0){
-		result = vec3(shadow/((1+range+range)*(1+range+range)));
-	}
+    if(shadow > 0){
+	    result = vec3(1.0f-(shadow/((1+range+range)*(1+range+range))));
+    }
+    //result is too dark and does not behave as intended
+    result = clamp(result, vec3(0.001f),vec3(1));
+    result = mix(lightColor, vec3(1.0f), result.x);
 
-
-    finalColor = vec4(result, 1);
+    finalColor = vec4(result, 1.0f);
 }
