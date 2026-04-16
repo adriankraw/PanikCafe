@@ -42,7 +42,7 @@ void InputManager::ReadInput(Camera &camera) {
     float mouseWheel = GetMouseWheelMove();
     camera.position += Vector3Scale(Vector3Normalize(camera.target - camera.position), mouseWheel / 10.0f);
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetMouseDelta();
         camera.position = Vector3RotateByAxisAngle(camera.position, Vector3{0.0f, 1.0f, 0.0f}, -mousePos.x / 100.0f);
         camera.position = Vector3RotateByAxisAngle(

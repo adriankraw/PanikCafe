@@ -31,7 +31,7 @@ void main()
     fragPosLightSpace.xyz = (fragPosLightSpace.xyz+1.0)/2.0f;
 
     vec2 shadowUVCoord = fragPosLightSpace.xy;
-    float shadowDepth = (fragPosLightSpace.z)+0.5f;
+    float shadowDepth = 1.0f - (fragPosLightSpace.z);
     float shadow     = 0;
 
     float bias = max(0.005*(1.0 - dot(N, L)), 0.00002) + 0.00001;
@@ -41,7 +41,7 @@ void main()
     float rec = shadowDepth;
     float blo = 0;
     int blockerCount = 0;
-    float blockRange = 3.0f;
+    float blockRange = 2.0f;
     for(float x = -blockRange; x <= blockRange; x+= 1.0f)
     {
 	for(float y = -blockRange; y <= blockRange; y+= 1.0f)
@@ -55,33 +55,40 @@ void main()
 	}
     }
 
-    int range = 0;
+    int range = 2;
     if(blockerCount > 0)
     {
 	blo = blo/blockerCount;
 	float pcff_range = (rec - blo)*(amplitude/blo);
-	pcff_range *=25.0f;
+	pcff_range *= 5.0f;
 	//range is still not right 
 
 	range = int(pcff_range);
-	range = clamp(range, 0, 16);
+	range = clamp(range, 1, 15);
+    }else
+    {
+	finalColor = vec4(1.0);
+	return;
     }
 
     for(int x = -range; x <= range; ++x)
     {
         for(int y = -range; y <= range; ++y)
         {
-            float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x;
-	    if(shadowDepth - bias > shadow_nn){
+            float shadow_nn = texture(shadow0, shadowUVCoord+(vec2(x,y)*texelSize)).x + 0.001f;
+	    if(shadowDepth > shadow_nn){
                 shadow += shadow_nn;
             }
         }
     }
-    if(shadow > 0){
-	    result = vec3(1.0f-(shadow/((1+range+range)*(1+range+range))));
+    if(shadow > 0.0f){
+	    result = vec3(1.0f - (shadow/((1+range+range)*(1+range+range))));
+    }else{
+	result = vec3(1.0f);
     }
+    result = clamp(result, vec3(0), vec3(1));
     //result is too dark and does not behave as intended
-    result = clamp(result, vec3(0.001f),vec3(1));
+    result = clamp(1.0f - result, vec3(0.01f),vec3(0.99));
     result = mix(lightColor, vec3(1.0f), result.x);
 
     finalColor = vec4(result, 1.0f);

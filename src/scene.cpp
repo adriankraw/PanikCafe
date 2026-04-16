@@ -16,6 +16,7 @@ public:
     std::string name;
     Camera3D mainCam;
     Vector3 objPosition;
+    Vector2 clipRange{0,0};
     std::vector<GameObject> gameObjects{};
     std::vector<Light> lights{};
 

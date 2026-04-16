@@ -93,6 +93,16 @@ void imguiRenderer::Loop() {
                     ImVec2(1,   gameWindowImageOffset.y)); 
     ImGui::End();
 
+    for(size_t i = 0; i < game->scenes[0].lights.size(); ++i)
+    {
+        std::string name = "LightDepth" + std::to_string(i);
+        ImGui::Begin(name.c_str()); 
+        ImGui::Image((ImTextureID)game->scenes[0].lights[i].shadowTexture.texture.id, gameWindowSize, 
+                        ImVec2(  gameWindowImageOffset.x, 1), 
+                        ImVec2(1,   gameWindowImageOffset.y)); 
+        ImGui::End();
+    }
+    
     ImGui::Begin("Renderer");
     for(auto index = 0; index < game->lastaddedLayer; ++index)
     {

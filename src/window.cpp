@@ -52,7 +52,10 @@ window::~window() {}
 void window::Init(int width, int height, const std::string title) {
     InitWindow(width, height, title.c_str());
     config::getInstance().LoadConfig();
-
+    
+    float clipmin = 1.0f;
+    float clipmax = 60.0f;
+    mainscene.clipRange = Vector2{clipmin, clipmax};
     game.scenes.push_back(mainscene);
 
     GetFontDefault() = config::getInstance().fontNormal;
@@ -77,7 +80,7 @@ void window::Init(int width, int height, const std::string title) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     SetConfigFlags(FLAG_WINDOW_HIGHDPI);
 
-    rlSetClipPlanes(5.0f, 60.0f);
+    rlSetClipPlanes(clipmin, clipmax);
 
     float shadowMapResolution = 512 * 2;
 

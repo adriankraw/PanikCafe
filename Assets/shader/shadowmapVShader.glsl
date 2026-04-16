@@ -14,5 +14,5 @@ void main()
 {
     // Send vertex attributes to fragment shader
     lightSpace = matLightVP * vec4(vertexPosition, 1.0);
-	gl_Position = lightSpace;
+    gl_Position = lightSpace;
 }

@@ -76,11 +76,12 @@ void meshRenderer::Loop(){
     lightsToScreen();
 
     BeginTextureMode(*resultTexture);
-    ClearBackground(BLACK);
+    ClearBackground(WHITE);
     rlEnableColorBlend();
 
+    rlSetBlendMode(RL_BLEND_ADD_COLORS);
+
     pbrLoop();
-    rlSetBlendMode(RL_BLEND_MULTIPLIED);
     RenderScreenTexture();
 
     rlDisableColorBlend();
@@ -130,6 +131,8 @@ void meshRenderer::shadow_inLightMVP()
                 lightProj = rlGetMatrixProjection();
                 light.projectionMatrix = MatrixMultiply(lightView, lightProj);
 
+                SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "minclamp"), &scene->clipRange.x, SHADER_UNIFORM_FLOAT);
+                SetShaderValue(shadowmapShader, rlGetLocationUniform(shadowmapShader.id, "maxclamp"), &scene->clipRange.y, SHADER_UNIFORM_FLOAT);
                 SetShaderValueMatrix(shadowmapShader, GetShaderLocation(shadowmapShader, "matLightVP"), light.projectionMatrix);
 
                 for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
@@ -232,7 +235,9 @@ void meshRenderer::shadow_ToCameraMVP()
 void meshRenderer::lightsToScreen(){
     RenderTexture& screenTexture = renTextures.at(0);
     BeginTextureMode(screenTexture);
-        ClearBackground(BLACK);
+        ClearBackground(WHITE);
+        rlSetBlendMode(RL_BLEND_CUSTOM);
+        rlSetBlendFactors(RL_SRC_COLOR, RL_DST_COLOR, RL_BLEND_SUBTRACT_COLORS);
         for (size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex) {
             Texture *shadowsCalculated = &scene->lights[lightIndex].shadowsCalculated.texture;
             DrawTexturePro(*shadowsCalculated,
