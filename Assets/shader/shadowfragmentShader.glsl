@@ -60,14 +60,14 @@ void main()
     {
 	blo = blo/blockerCount;
 	float pcff_range = (rec - blo)*(amplitude/blo);
-	pcff_range *= 5.0f;
+	pcff_range *= 1.0f;
 	//range is still not right 
 
 	range = int(pcff_range);
 	range = clamp(range, 1, 15);
     }else
     {
-	finalColor = vec4(1.0);
+	finalColor = vec4(0.0);
 	return;
     }
 
@@ -81,14 +81,14 @@ void main()
             }
         }
     }
-    if(shadow > 0.0f){
+    if(shadow > 0.01f){
 	    result = vec3(1.0f - (shadow/((1+range+range)*(1+range+range))));
     }else{
-	result = vec3(1.0f);
+	result = vec3(0.0f);
     }
     result = clamp(result, vec3(0), vec3(1));
     //result is too dark and does not behave as intended
-    result = clamp(1.0f - result, vec3(0.01f),vec3(0.99));
+    result = clamp(1.0f - result*result, vec3(0.01f),vec3(0.99));
     result = mix(lightColor, vec3(1.0f), result.x);
 
     finalColor = vec4(result, 1.0f);

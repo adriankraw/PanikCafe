@@ -120,7 +120,6 @@ void main()
         result += outgoingLight/3.0;
     }
     //result = textureMesh.xyz*ambient;
-    result = clamp(result+ambient, vec3(0), vec3(1.0f));
-    result = pow(result, vec3(1.0/2.2f));
+    result = clamp(result, vec3(0), vec3(1.0f));
     finalColor = vec4(result, textureMesh.a);
 }

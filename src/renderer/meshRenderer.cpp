@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <iostream>
 #include <ostream>
+#include <chrono>
 
 #include <raylib.h>
 #include <raymath.h>
@@ -39,14 +40,19 @@ private:
     Vector3 viewPos{0,0,0};
     Vector3 viewDir{0,0,0};
 
-    void shadow_inLightMVP();
-    void shadow_ToCameraMVP();
-    void pbrLoop();
+
+    void renderDepth();
+    void shadow_inLightMVP(int layerId);
+    void shadow_ToCameraMVP(int layerId);
+    void pbrLoop(int layerId);
     void lightSphereLoop();
-    void lightsToScreen();
-    void RenderScreenTexture();
+    void shadowToScreenTexture(int layerId);
+    void RenderScreenTexture(int layerId);
 
     void updateObjectTransformByAnim(Vector3 *trans, int model_index, int frame);
+
+    int frameCount{0};         //used for some benchmarking
+    int frameCountModulo{30};   //update once frameCount == frameCountModulo
 
 };
 
@@ -71,31 +77,96 @@ void meshRenderer::Init(){
 }
 
 void meshRenderer::Loop(){
-    shadow_inLightMVP();
-    shadow_ToCameraMVP();
-    lightsToScreen();
+    auto startLoop = std::chrono::high_resolution_clock::now();
+    for(int layerIndex = game->layer[0].nextNode; layerIndex != 0 ; layerIndex = game->layer[layerIndex].nextNode)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        switch(game->layer[layerIndex].nodeType)
+        {
+            case renderer::RenderState::null:
+            {
+            }break;
+            case renderer::RenderState::cull:
+            {
+                rlEnableBackfaceCulling();
+            }break;
+            case renderer::RenderState::cullEnd:
+            {
+                rlDisableBackfaceCulling();
+            }break;
+            case renderer::RenderState::blend:
+            {
+                BeginBlendMode(game->layer[layerIndex].blendMode);
+            }break;
+            case renderer::RenderState::blendEnd:
+            {
+                EndBlendMode();
+            }break;
+            case renderer::RenderState::depth:
+            {
+                shadow_inLightMVP(layerIndex);
+            }break;
+            case renderer::RenderState::light:
+            {
 
-    BeginTextureMode(*resultTexture);
-    ClearBackground(WHITE);
-    rlEnableColorBlend();
+            }break;
+            case renderer::RenderState::shadow:
+            {
+                shadow_ToCameraMVP(layerIndex);
+            }break;
+            case renderer::RenderState::shadowToScreen:
+            {
+                shadowToScreenTexture(layerIndex);
+            }break;
+            case renderer::RenderState::pbr:
+            {
+                //try to render for each light
+                // light0 * shadow0
+                //+light1 * shadow1
+                //+light2 * shadow2
+                rlClearScreenBuffers();
+                ClearBackground(WHITE);
+                BeginTextureMode(*resultTexture);
+                rlCullMode(RL_CULL_FACE_BACK);
+                renderDepth();
 
-    rlSetBlendMode(RL_BLEND_ADD_COLORS);
+                rlEnableColorBlend();
+                rlSetBlendMode(game->layer[layerIndex].blendMode);
 
-    pbrLoop();
-    RenderScreenTexture();
+                pbrLoop(layerIndex);
 
-    rlDisableColorBlend();
-    EndTextureMode();
+                lightSphereLoop();
+
+                rlDisableColorBlend();
+                EndTextureMode();
+            }break;
+            case renderer::RenderState::screen:
+            {
+                RenderScreenTexture(layerIndex);
+            }break;
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        game->layer[layerIndex].calctimeDuration += duration_cast<std::chrono::milliseconds>(end-start).count();
+        if(frameCount == frameCountModulo){
+            game->layer[layerIndex].timeDuration = game->layer[layerIndex].calctimeDuration / frameCountModulo; 
+            game->layer[layerIndex].calctimeDuration = 0;
+            frameCount = 0;
+        }else{
+            frameCount++;
+        }
+    }
+    auto endLoop = std::chrono::high_resolution_clock::now();
+    game->layer[0].calctimeDuration += std::chrono::duration_cast<std::chrono::milliseconds>(endLoop-startLoop).count();
+    game->layer[0].timeDuration = game->layer[0].calctimeDuration / frameCountModulo; 
 }
 
 void meshRenderer::Close(){
 
 }
 
-void meshRenderer::shadow_inLightMVP()
+void meshRenderer::shadow_inLightMVP(int layerid)
 {
     // shadowRender
-    int layerid = 0;
     rlEnableBackfaceCulling();
     rlSetCullFace((bool)game->layer[layerid].cullMode);
     Matrix lightProj;
@@ -112,10 +183,12 @@ void meshRenderer::shadow_inLightMVP()
             scene->gameObjects[gO].model.materials[ma].shader = shadowmapShader;
         }
     }
+    rlSetBlendMode(game->layer[layerid].blendMode);
+    rlEnableColorBlend();
     for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
     {
         Light &light = scene->lights.at(lightIndex);
-
+        
         BeginTextureMode(light.shadowTexture);
         {
             if (game->layer[layerid].clearBackground){
@@ -159,16 +232,29 @@ void meshRenderer::shadow_inLightMVP()
         }
         EndTextureMode();
     }
+    rlDisableColorBlend();
     rlDisableBackfaceCulling();
     rlSetCullFace(!(bool)game->layer[layerid].cullMode);
 }
 
-void meshRenderer::shadow_ToCameraMVP()
+void meshRenderer::renderDepth()
 {
-    int layerid = 1;
+    BeginMode3D(scene->mainCam);
+    {
+        for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
+            Vector3 trans = scene->gameObjects[gO].translation;
+            auto &model = scene->gameObjects[gO].model;
+            DrawModel(model, trans, 1.0f, WHITE);
+        }
+    }
+    EndMode3D();
+}
+
+void meshRenderer::shadow_ToCameraMVP(int layerId)
+{
     viewPos = scene->mainCam.position;
     viewDir = Vector3Normalize(scene->mainCam.target - viewPos);
-    Shader coolShader = game->layer[layerid].shader;
+    Shader coolShader = game->layer[layerId].shader;
 
     RenderTexture screenTexture = renTextures.at(0);
     defaultMat.shader = coolShader;
@@ -179,19 +265,19 @@ void meshRenderer::shadow_ToCameraMVP()
         }
     }
     //rlEnableBackfaceCulling();
-    rlSetCullFace(game->layer[layerid].cullMode);
+    rlSetCullFace(game->layer[layerId].cullMode);
 
     for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
     {
         Light &light = scene->lights[lightIndex];
         BeginTextureMode(light.shadowsCalculated);
-            if(game->layer[layerid].clearBackground)
+            if(game->layer[layerId].clearBackground)
             {
                 ClearBackground(Color{
-                    (unsigned char)game->layer[layerid].backgroundColor[0],
-                    (unsigned char)game->layer[layerid].backgroundColor[1],
-                    (unsigned char)game->layer[layerid].backgroundColor[2],
-                    (unsigned char)game->layer[layerid].backgroundColor[3]});
+                    (unsigned char)game->layer[layerId].backgroundColor[0],
+                    (unsigned char)game->layer[layerId].backgroundColor[1],
+                    (unsigned char)game->layer[layerId].backgroundColor[2],
+                    (unsigned char)game->layer[layerId].backgroundColor[3]});
             }
             BeginMode3D(scene->mainCam);
             
@@ -200,12 +286,12 @@ void meshRenderer::shadow_ToCameraMVP()
             SetShaderValue(coolShader,      rlGetLocationUniform(coolShader.id, "lightColor"), &light.Color, SHADER_UNIFORM_VEC3);
 
             int shadowMapRes_Location = rlGetLocationUniform(coolShader.id, "shadowMapResolution");
-            if(shadowMapRes_Location == -1) printf("shadowMapsResolution not found");
+            if(shadowMapRes_Location == -1) game->layer[layerId].error = true;
             SetShaderValue(coolShader, shadowMapRes_Location, &shadowMapResolution, SHADER_UNIFORM_FLOAT);
 
             int amplitude_Location = GetShaderLocation(coolShader, "amplitude");
             SetShaderValue(coolShader, amplitude_Location, &light.amplitude, SHADER_UNIFORM_FLOAT);
-            if(amplitude_Location == -1) printf("amiplitude not found");
+            if(amplitude_Location == -1) game->layer[layerId].error = true;
 
             auto shadow0loc = GetShaderLocation(coolShader, "shadow0");
             SetShaderValueTexture(coolShader,GetShaderLocation( coolShader,    "shadow0"), light.shadowTexture.depth);
@@ -232,35 +318,44 @@ void meshRenderer::shadow_ToCameraMVP()
 
 }
 
-void meshRenderer::lightsToScreen(){
-    RenderTexture& screenTexture = renTextures.at(0);
+void meshRenderer::shadowToScreenTexture(int layerId){
+    RenderTexture& screenTexture = *resultTexture;
+    ClearBackground(WHITE);
+    rlEnableColorBlend();
+    rlSetBlendMode(BLEND_MULTIPLIED);
     BeginTextureMode(screenTexture);
-        ClearBackground(WHITE);
-        rlSetBlendMode(RL_BLEND_CUSTOM);
-        rlSetBlendFactors(RL_SRC_COLOR, RL_DST_COLOR, RL_BLEND_SUBTRACT_COLORS);
         for (size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex) {
-            Texture *shadowsCalculated = &scene->lights[lightIndex].shadowsCalculated.texture;
-            DrawTexturePro(*shadowsCalculated,
-                           Rectangle{0, 0, (float)shadowsCalculated->width, (float)-shadowsCalculated->height},
-                           Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
-                           Vector2{0, 0}, 0.0f, WHITE);
+            Texture &shadowsCalculated = scene->lights[lightIndex].shadowsCalculated.texture;
+            DrawTextureRec(shadowsCalculated,
+                           Rectangle{0, 0, (float)shadowsCalculated.width, (float)-shadowsCalculated.height},
+                           Vector2{0, 0}, WHITE);
         }
     EndTextureMode();
+    rlClearScreenBuffers();
+    rlDisableColorBlend();
 }
 
-void meshRenderer::RenderScreenTexture(){
-    int layerid = 3;
-    Shader screenShader = game->layer[layerid].shader;
-    RenderTexture screenTexture = renTextures.at(0);
+void meshRenderer::RenderScreenTexture(int layerId){
+    Shader screenShader = game->layer[layerId].shader;
+    //RenderTexture screenTexture = renTextures.at(0);
+    RenderTexture& screenTexture = *resultTexture;
 
     // screentexture
     //ClearBackground(game->layer[layerid].backgroundColor);
-    //
+    if (game->layer[layerId].clearBackground){
+        rlClearScreenBuffers();
+        ClearBackground(Color{
+            (unsigned char)game->layer[layerId].backgroundColor[0],
+            (unsigned char)game->layer[layerId].backgroundColor[1],
+            (unsigned char)game->layer[layerId].backgroundColor[2],
+            (unsigned char)game->layer[layerId].backgroundColor[3]});
+    }
+
     BeginShaderMode(screenShader);
     {
         for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
         {
-            RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
+            //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
             SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
             DrawTextureRec(screenTexture.texture,
                            Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
@@ -270,10 +365,9 @@ void meshRenderer::RenderScreenTexture(){
     EndShaderMode();
 }
 
-void meshRenderer::pbrLoop()
+void meshRenderer::pbrLoop(int layerId)
 {
-    int layerid = 2;
-    Shader pbrShader = game->layer[layerid].shader;
+    Shader pbrShader = game->layer[layerId].shader;
     Vector3 viewdir = Vector3Normalize(scene->mainCam.target - scene->mainCam.position);
     SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "viewPos"), &scene->mainCam.position, SHADER_UNIFORM_VEC3);
     SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3);
@@ -286,12 +380,12 @@ void meshRenderer::pbrLoop()
     BeginMode3D(scene->mainCam);
     BeginShaderMode(pbrShader);
     {
-        if (game->layer[layerid].clearBackground){
+        if (game->layer[layerId].clearBackground){
             ClearBackground(Color{
-                (unsigned char)game->layer[layerid].backgroundColor[0],
-                (unsigned char)game->layer[layerid].backgroundColor[1],
-                (unsigned char)game->layer[layerid].backgroundColor[2],
-                (unsigned char)game->layer[layerid].backgroundColor[3]});
+                (unsigned char)game->layer[layerId].backgroundColor[0],
+                (unsigned char)game->layer[layerId].backgroundColor[1],
+                (unsigned char)game->layer[layerId].backgroundColor[2],
+                (unsigned char)game->layer[layerId].backgroundColor[3]});
         }
         for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
             Vector3 trans = scene->gameObjects[gO].translation;
