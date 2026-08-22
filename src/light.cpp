@@ -11,6 +11,7 @@ class Light {
     Matrix projectionMatrix{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     RenderTexture2D shadowTexture{0};
     RenderTexture2D shadowsCalculated{0};
+    RenderTexture2D shadowsrendered{0};
 
     Light() {};
     Light(const Light&) = default;

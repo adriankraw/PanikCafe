@@ -241,8 +241,6 @@ void window::Loop() {
         rlDisableColorBlend();
     EndDrawing();
     
-    std::cout << "FrameTime:" << GetFrameTime() << " FPS" << GetFPS() << std::endl;
-
 
     /*
     Light *lightCam = &game.scenes[0].lights[0];

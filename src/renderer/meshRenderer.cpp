@@ -24,6 +24,7 @@ public:
     
     std::vector<RenderTexture2D> renTextures{};
     RenderTexture2D* resultTexture;
+    RenderTexture2D pbrTexture;
     Game* game = nullptr;
     Scene* scene = nullptr;
 
@@ -44,7 +45,7 @@ private:
     void renderDepth();
     void shadow_inLightMVP(int layerId);
     void shadow_ToCameraMVP(int layerId);
-    void pbrLoop(int layerId);
+    void pbrLoop(int layerId, int lightIndex);
     void lightSphereLoop();
     void shadowToScreenTexture(int layerId);
     void RenderScreenTexture(int layerId);
@@ -66,13 +67,15 @@ void meshRenderer::Init(){
     renTextures.push_back( LoadRenderTextureWithDepth(1280, 720));
     if(game == nullptr) std::cout << "game nullptr" << std::endl;
     if(scene == nullptr) std::cout << "scene nullptr" << std::endl;
-    
+   
+    pbrTexture = LoadRenderTextureWithDepth(1280, 720);
     for (auto &light : scene->lights) {
         std::cout << "light" << std::endl; 
         light.shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
         SetTextureWrap(light.shadowTexture.texture, TEXTURE_WRAP_CLAMP);
         SetTextureFilter(light.shadowTexture.texture, RL_TEXTURE_FILTER_LINEAR);
         light.shadowsCalculated = LoadRenderTexture(1280, 720);
+        light.shadowsrendered = LoadRenderTexture(1280, 720);
     }
 }
 
@@ -125,15 +128,52 @@ void meshRenderer::Loop(){
                 //+light1 * shadow1
                 //+light2 * shadow2
                 rlClearScreenBuffers();
+
                 ClearBackground(WHITE);
-                BeginTextureMode(*resultTexture);
                 rlCullMode(RL_CULL_FACE_BACK);
-                renderDepth();
+                //BeginTextureMode(pbrTexture);
+                //renderDepth();
+                for(int index = 0; index < scene->lights.size(); ++index){
+                    pbrLoop(layerIndex, index);
+                }
+                //EndTextureMode();
 
+
+                for(int index = 0; index < scene->lights.size(); ++index){
+                    BeginTextureMode(scene->lights[index].shadowTexture);
+                    rlClearScreenBuffers();
+                    rlClearColor(255, 255, 255, 1);
+                    rlSetBlendMode(BLEND_MULTIPLIED);
+                    
+                    ///*
+                    DrawTextureRec(scene->lights[index].shadowsrendered.texture,
+                                   Rectangle{0, 0, 
+                                            (float)scene->lights[index].shadowsrendered.texture.width, 
+                                            (float)-scene->lights[index].shadowsrendered.texture.height},
+                                   Vector2{0, 0}, WHITE);
+                    DrawTextureRec(scene->lights[index].shadowsCalculated.texture,
+                                   Rectangle{0, 0, 
+                                            (float)scene->lights[index].shadowsCalculated.texture.width, 
+                                            (float)-scene->lights[index].shadowsCalculated.texture.height},
+                                   Vector2{0, 0}, WHITE);
+                    EndTextureMode();
+                    break;
+                }
+                
+                BeginTextureMode(*resultTexture);
                 rlEnableColorBlend();
-                rlSetBlendMode(game->layer[layerIndex].blendMode);
+                ClearBackground(BLACK);
+                rlSetBlendMode(BLEND_ADDITIVE);
+                for(int index = 0; index < scene->lights.size(); ++index){
+                    DrawTextureRec(scene->lights[index].shadowTexture.texture,
+                                   Rectangle{0, 0, 
+                                            (float)scene->lights[index].shadowTexture.texture.width, 
+                                            (float)-scene->lights[index].shadowTexture.texture.height},
+                                   Vector2{0, 0}, WHITE);
+                    break;
+                }
 
-                pbrLoop(layerIndex);
+                EndTextureMode();
 
                 lightSphereLoop();
 
@@ -353,30 +393,26 @@ void meshRenderer::RenderScreenTexture(int layerId){
 
     BeginShaderMode(screenShader);
     {
-        for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
-        {
-            //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
-            SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
-            DrawTextureRec(screenTexture.texture,
-                           Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
-                           Vector2{0, 0}, WHITE);
-        }
+        //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
+        SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
+        DrawTextureRec(screenTexture.texture,
+                       Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
+                       Vector2{0, 0}, WHITE);
     }
     EndShaderMode();
 }
 
-void meshRenderer::pbrLoop(int layerId)
+void meshRenderer::pbrLoop(int layerId, int lightIndex)
 {
     Shader pbrShader = game->layer[layerId].shader;
     Vector3 viewdir = Vector3Normalize(scene->mainCam.target - scene->mainCam.position);
     SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "viewPos"), &scene->mainCam.position, SHADER_UNIFORM_VEC3);
     SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "viewDir"), &viewDir, SHADER_UNIFORM_VEC3);
-    for(auto index = 0; index < scene->lights.size(); ++index ){
-        SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightPos")+index, &scene->lights[index].cam.position, SHADER_UNIFORM_VEC3);
-        SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightColor")+index, &scene->lights[index].Color, SHADER_UNIFORM_VEC3);
-        SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightstrength")+index, &scene->lights[index].amplitude, SHADER_UNIFORM_FLOAT);
-    }
+    SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightPos"), &scene->lights[lightIndex].cam.position, SHADER_UNIFORM_VEC3);
+    SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightColor"), &scene->lights[lightIndex].Color, SHADER_UNIFORM_VEC3);
+    SetShaderValue(pbrShader, GetShaderLocation(pbrShader, "lightstrength"), &scene->lights[lightIndex].amplitude, SHADER_UNIFORM_FLOAT);
 
+    BeginTextureMode(scene->lights[lightIndex].shadowsrendered);
     BeginMode3D(scene->mainCam);
     BeginShaderMode(pbrShader);
     {
@@ -398,6 +434,9 @@ void meshRenderer::pbrLoop(int layerId)
     }
     EndShaderMode();
     EndMode3D();
+
+    EndBlendMode();
+    EndTextureMode();
 }
 
 void meshRenderer::lightSphereLoop(){
