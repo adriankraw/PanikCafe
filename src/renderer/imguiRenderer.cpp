@@ -4,7 +4,10 @@
 #include "../game.cpp"
 #include "../config.cpp"
 
-#include <__ios/fpos.h>
+#ifdef __APPLE__
+    #include <__ios/fpos.h>
+#endif
+
 #include <cstring>
 #include <string>
 
@@ -22,7 +25,6 @@ class imguiRenderer : public renderer {
     void Close() override;
 
     Game* game;
-    meshRenderer* meshRenderer;
     RenderTexture2D* screenTexture;
     bool layer_opened[LAYER_MAX];
 
@@ -180,8 +182,8 @@ void imguiRenderer::Loop() {
             }else{
                 ImGui::Text("Time: %08.2f mili", layer.timeDuration);
             }
-            ImGui::LabelText("Vertex", layer.shaderVertex.c_str());
-            ImGui::LabelText("Fragment", layer.shaderFragment.c_str());
+            ImGui::LabelText("Vertex", "%s", layer.shaderVertex.c_str());
+            ImGui::LabelText("Fragment", "%s", layer.shaderFragment.c_str());
             ImGui::SetNextItemWidth(150);
             if(ImGui::BeginCombo("BlendMode", renderer::blendmodes[layer.blendMode].c_str()))
             {

@@ -12,6 +12,7 @@
 #include <raymath.h>
 #include <rlgl.h>
 
+using namespace std::chrono;
 
 class meshRenderer : public renderer{
 public:
@@ -136,49 +137,51 @@ void meshRenderer::Loop(){
                 for(int index = 0; index < scene->lights.size(); ++index){
                     pbrLoop(layerIndex, index);
                 }
-                //EndTextureMode();
 
-
+                rlEnableColorBlend();
                 for(int index = 0; index < scene->lights.size(); ++index){
                     BeginTextureMode(scene->lights[index].shadowTexture);
-                    rlClearScreenBuffers();
-                    rlClearColor(255, 255, 255, 1);
-                    rlSetBlendMode(BLEND_MULTIPLIED);
+                    ClearBackground(WHITE);
                     
-                    ///*
                     DrawTextureRec(scene->lights[index].shadowsrendered.texture,
                                    Rectangle{0, 0, 
                                             (float)scene->lights[index].shadowsrendered.texture.width, 
                                             (float)-scene->lights[index].shadowsrendered.texture.height},
                                    Vector2{0, 0}, WHITE);
+
+                    rlDrawRenderBatchActive();
+                    //rlSetBlendFactors(RL_SRC_ALPHA, RL_ZERO, RL_FUNC_ADD);
+                    rlSetBlendFactorsSeparate(RL_DST_COLOR , RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                    rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
+
                     DrawTextureRec(scene->lights[index].shadowsCalculated.texture,
                                    Rectangle{0, 0, 
                                             (float)scene->lights[index].shadowsCalculated.texture.width, 
                                             (float)-scene->lights[index].shadowsCalculated.texture.height},
                                    Vector2{0, 0}, WHITE);
+
+                    rlDrawRenderBatchActive();
                     EndTextureMode();
-                    break;
-                }
+                } 
                 
                 BeginTextureMode(*resultTexture);
-                rlEnableColorBlend();
-                ClearBackground(BLACK);
-                rlSetBlendMode(BLEND_ADDITIVE);
+                rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                ClearBackground(WHITE);
+                rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
                 for(int index = 0; index < scene->lights.size(); ++index){
                     DrawTextureRec(scene->lights[index].shadowTexture.texture,
                                    Rectangle{0, 0, 
                                             (float)scene->lights[index].shadowTexture.texture.width, 
                                             (float)-scene->lights[index].shadowTexture.texture.height},
                                    Vector2{0, 0}, WHITE);
-                    break;
+                    rlDrawRenderBatchActive();
                 }
 
                 EndTextureMode();
 
-                lightSphereLoop();
+                //lightSphereLoop();
 
-                rlDisableColorBlend();
-                EndTextureMode();
+                //EndTextureMode();
             }break;
             case renderer::RenderState::screen:
             {

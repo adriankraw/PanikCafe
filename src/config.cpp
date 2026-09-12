@@ -12,7 +12,7 @@ public:
 
         return instance;
     }
-    std::string fontNormalPath = "./fonts/raleway-latin-500-normal.ttf";
+    std::string fontNormalPath = "./Assets/fonts/raleway-latin-500-normal.ttf";
     Font fontNormal;
 
 private:

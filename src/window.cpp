@@ -32,12 +32,12 @@ class window {
     bool inputActive = false;
 
   private:
-    meshRenderer meshrenderer{};
+    meshRenderer Meshrenderer{};
     uiRenderer UIrendererer{};
-    imguiRenderer imguiRenderer{};
+    imguiRenderer ImguiRenderer{};
 
-    meshManager meshManager{};
-    shaderManager shaderManager{};
+    meshManager MeshManager{};
+    shaderManager ShaderManager{};
 
     RenderTexture2D renderTarget;
 
@@ -71,19 +71,18 @@ void window::Init(int width, int height, const std::string title) {
 
     GetFontDefault() = config::getInstance().fontNormal;
 
-    meshrenderer.game = &game;
-    meshrenderer.scene = &game.scenes.at(0);
+    Meshrenderer.game = &game;
+    Meshrenderer.scene = &game.scenes.at(0);
     UIrendererer.game = &game;
-    meshrenderer.Init();
+    Meshrenderer.Init();
     UIrendererer.Init();
-    imguiRenderer.Init();
+    ImguiRenderer.Init();
 
-    renderTarget = meshrenderer.LoadRenderTextureWithDepth(width, height);
-    meshrenderer.resultTexture = &renderTarget;
+    renderTarget = Meshrenderer.LoadRenderTextureWithDepth(width, height);
+    Meshrenderer.resultTexture = &renderTarget;
 
-    imguiRenderer.game = &game;
-    imguiRenderer.meshRenderer = &meshrenderer;
-    imguiRenderer.screenTexture = &renderTarget;
+    ImguiRenderer.game = &game;
+    ImguiRenderer.screenTexture = &renderTarget;
     inputManager->scene = &game.scenes.at(0);
 
     rlSetClipPlanes(clipmin, clipmax);
@@ -96,13 +95,13 @@ void window::Init(int width, int height, const std::string title) {
     float uniformScale = 1.25f;
     float time = 0;
 
-    meshManager.Import("./Assets/models/CafeBarRoom.glb");
-    meshManager.Import("./Assets/models/CafeBar.glb");
-    meshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
-    meshManager.Import("./Assets/models/KitFox.glb");
-    meshManager.Import("./Assets/models/Customers.glb");
+    MeshManager.Import("./Assets/models/CafeBarRoom.glb");
+    MeshManager.Import("./Assets/models/CafeBar.glb");
+    MeshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
+    MeshManager.Import("./Assets/models/KitFox.glb");
+    MeshManager.Import("./Assets/models/Customers.glb");
 
-    game.scenes.at(0).LoadScene(&meshManager);
+    game.scenes.at(0).LoadScene(&MeshManager);
 
     game.layer[0] = (renderer::RenderLayer{
         .name = "null",
@@ -110,7 +109,7 @@ void window::Init(int width, int height, const std::string title) {
         .nodeType = renderer::RenderState::null
     });
     //Depth
-    shaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
+    ShaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
     game.layer[1] = (renderer::RenderLayer{
         .name ="Depth",
         .nextNode = 2,
@@ -119,14 +118,14 @@ void window::Init(int width, int height, const std::string title) {
         .clearBackground=true,
         .cullMode=RL_CULL_FACE_FRONT,
         .backgroundColor={255,255,255,1},
-        .shader=shaderManager.list.back(),
+        .shader=ShaderManager.list.back(),
         .shaderVertex = "./Assets/shader/shadowmapVShader.glsl",
         .shaderVertexModTime = GetFileModTime("./Assets/shader/shadowmapVShader.glsl"),
         .shaderFragment = "./Assets/shader/shadowmapFShader.glsl",
         .shaderFragmentModTime = GetFileModTime("./Assets/shader/shadowmapFShader.glsl"),
     });
     //Shadow
-    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
+    ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
     game.layer[2] = (renderer::RenderLayer{
         .name ="Shadow",
         .nextNode = 3,
@@ -136,14 +135,14 @@ void window::Init(int width, int height, const std::string title) {
         .cullMode=RL_CULL_FACE_FRONT,
         .blendMode=RL_BLEND_MULTIPLIED,
         .backgroundColor={255,255,255,1},
-        .shader=shaderManager.list.back(),
+        .shader=ShaderManager.list.back(),
         .shaderVertex = "./Assets/shader/vertexShader.glsl",
         .shaderVertexModTime = GetFileModTime("./Assets/shader/vertexShader.glsl"),
         .shaderFragment = "./Assets/shader/shadowfragmentShader.glsl",
         .shaderFragmentModTime = GetFileModTime("./Assets/shader/shadowfragmentShader.glsl"),
     });
     //pbr
-    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
+    ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
     game.layer[3] = (renderer::RenderLayer{
         .name ="Pbr",
         .nextNode = 4,
@@ -151,21 +150,21 @@ void window::Init(int width, int height, const std::string title) {
         .nodeType = renderer::RenderState::pbr,
         .clearBackground=true,
         .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
+        .shader=ShaderManager.list.back(),
         .shaderVertex = "./Assets/shader/vertexShader.glsl",
         .shaderVertexModTime = GetFileModTime("./Assets/shader/vertexShader.glsl"),
         .shaderFragment = "./Assets/shader/fragmentShader.glsl",
         .shaderFragmentModTime = GetFileModTime("./Assets/shader/fragmentShader.glsl")
     });
     //screen
-    shaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
+    ShaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
     game.layer[4] = (renderer::RenderLayer{
         .name ="Screen",
         .nextNode = 5,
         .prevNode = 3,
         .nodeType = renderer::RenderState::screen,
         .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
+        .shader=ShaderManager.list.back(),
         .shaderVertex = "",
         .shaderVertexModTime = 0,
         .shaderFragment = "./Assets/shader/screenFragmentShader.glsl",
@@ -177,7 +176,7 @@ void window::Init(int width, int height, const std::string title) {
         .prevNode = 4,
         .nodeType = renderer::RenderState::null,
         .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
+        .shader=ShaderManager.list.back(),
         .shaderVertex = "",
         .shaderVertexModTime = 0,
         .shaderFragment = "",
@@ -185,7 +184,7 @@ void window::Init(int width, int height, const std::string title) {
     });
     game.lastaddedLayer = 5;
 
-    meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
+    Meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
 
     SetTraceLogLevel(LOG_WARNING);
    
@@ -205,7 +204,7 @@ void window::Init(int width, int height, const std::string title) {
 }
 
 void window::Loop() {
-    inputActive = imguiRenderer.ishovered;
+    inputActive = ImguiRenderer.ishovered;
 
     Ray ray = {0};
     RayCollision collision = {0};
@@ -228,7 +227,7 @@ void window::Loop() {
 
     BeginDrawing();
         ClearBackground(BLACK);
-        meshrenderer.Loop();
+        Meshrenderer.Loop();
 
         if(inputActive){
             inputManager->Update();
@@ -237,14 +236,14 @@ void window::Loop() {
         rlEnableColorBlend();
         rlSetBlendMode(RL_BLEND_ALPHA);
         UIrendererer.Loop();
-        imguiRenderer.Loop();
+        ImguiRenderer.Loop();
         rlDisableColorBlend();
     EndDrawing();
     
 
     /*
     Light *lightCam = &game.scenes[0].lights[0];
-    ReadInput(&lightCam->cam.position, meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD
+    ReadInput(&lightCam->cam.position, Meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD
 
     if (game.customersCount < game.customersMax) {
         game.customersCooldown -= GetFrameTime();

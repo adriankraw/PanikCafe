@@ -14,27 +14,43 @@
       };
     in pkgs.mkShell {
       packages = with pkgs; [
-        pkg-config
-        mesa
-        libGL
+  pkg-config
+  mesa
+  libGL
 
-        wayland
-        wayland-scanner
-        wayland-protocols
-        libxkbcommon
+  # Wayland
+  wayland
+  wayland-scanner
+  wayland-protocols
+  libxkbcommon
 
-        raylib
-        glfw
-        renderdoc
+  # X11 / XWayland
+  xorg.libX11
+  xorg.libXrandr
+  xorg.libXinerama
+  xorg.libXcursor
+  xorg.libXi
 
-        # Uncomment the line below if you want to build Raylib with web support
-        # pkgs.emscripten
-      ];
-      LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [ 
-        libGL
-        wayland 
-        libxkbcommon 
-      ]);
+  cmake
+
+  raylib
+  glfw
+  renderdoc
+];      
+LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
+  libGL
+
+  wayland
+  wayland-scanner
+  wayland-protocols
+  libxkbcommon
+
+  xorg.libX11
+  xorg.libXrandr
+  xorg.libXinerama
+  xorg.libXcursor
+  xorg.libXi
+]);
     };
   };
 }
