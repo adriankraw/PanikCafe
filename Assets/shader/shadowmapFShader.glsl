@@ -19,7 +19,6 @@ void main()
     //finalColor = fragColor * texture(texture0, fragTexCoord);
     float depth = (lightSpace.z/lightSpace.w)+minclamp;
 
-    //depth = LinearizeDepth(depth);
     depth = clamp(depth, 0.01f,0.999f);
     gl_FragDepth = depth;
     finalColor = vec4(1.0f - depth);

@@ -142,7 +142,7 @@ void meshRenderer::Loop(){
                 for(int index = 0; index < scene->lights.size(); ++index){
                     BeginTextureMode(scene->lights[index].shadowTexture);
                     ClearBackground(WHITE);
-                    
+                    rlSetBlendMode(BlendMode::BLEND_ALPHA); 
                     DrawTextureRec(scene->lights[index].shadowsrendered.texture,
                                    Rectangle{0, 0, 
                                             (float)scene->lights[index].shadowsrendered.texture.width, 
@@ -151,7 +151,7 @@ void meshRenderer::Loop(){
 
                     rlDrawRenderBatchActive();
                     //rlSetBlendFactors(RL_SRC_ALPHA, RL_ZERO, RL_FUNC_ADD);
-                    rlSetBlendFactorsSeparate(RL_SRC_COLOR , RL_SRC_COLOR, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                    rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
                     rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
 
                     DrawTextureRec(scene->lights[index].shadowsCalculated.texture,
@@ -165,7 +165,7 @@ void meshRenderer::Loop(){
                 } 
                 
                 BeginTextureMode(*resultTexture);
-                rlSetBlendFactorsSeparate(RL_SRC_COLOR, RL_SRC_COLOR, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                rlSetBlendFactorsSeparate(RL_ONE, RL_ONE, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
                 ClearBackground(BLACK);
                 rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
                 for(int index = 0; index < scene->lights.size(); ++index){

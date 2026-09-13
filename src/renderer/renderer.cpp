@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include <cstddef>
 #include <vector>
+#include <string>
 
 #include <raylib.h>
 #include <rlgl.h>

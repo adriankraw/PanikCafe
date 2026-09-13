@@ -59,7 +59,7 @@ vec3 F(vec3 F0, vec3 V, vec3 L, vec3 H)
     //return F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(V, H), 0.0), 5.0);
     vec3 basecolor = max(texture(texture0,  fragTexCoord), 0.01).xyz / PI;
     basecolor *= (1 + (F0.x - 1)* pow(max(dot(V, H), 0.0), 5.0));
-    basecolor *= (1 + (F0.x - 1)* pow(max(dot(L, H), 0.0), 5.0));
+    //basecolor *= (1 + (F0.x - 1)* pow(max(dot(L, H), 0.0), 5.0));
     return basecolor;
 }
 
@@ -70,9 +70,10 @@ void main()
         finalColor = vec4(vec3(1, 0, 0) ,1.0f );
         return;
     }
-    vec3 ambient = ambientColor * 0.03f;
+    vec3 ambient = ambientColor * 0.05f;
 
     vec4 textureMesh = texture(texture0, fragTexCoord);
+    ambient += textureMesh.xyz * 0.15f;
     vec3 normalMap = max(texture(normal, fragTexCoord).rgb,0.001);
 
     if(noTexture0 == 1){
@@ -87,14 +88,12 @@ void main()
     if (metalic1 > 0) metalic = metalic1;
     vec3 result = vec3(0, 0, 0);
 
-    int lightIndex = 0;
-
     vec3 albedoMesh = textureMesh.xyz * fragColor.xyz;
     float alpha = clamp(max(roughness * roughness,0.0),0.0,1.0f);
 
     float lightdistance = length(lightPos - fragPosition);
     float attenuation = 1.0/(lightdistance * lightdistance);
-    vec3 radiance = (lightColor * 20.0f)/3.0f * lightstrength * attenuation;
+    vec3 radiance = (lightColor) * lightstrength * 2.0f * attenuation;
     vec3 emissivityMesh = vec3(0.0);
 
     vec3 N = normalize(fragNormal + normalMap);
@@ -102,7 +101,7 @@ void main()
     vec3 V = normalize(viewPos - fragPosition);
     vec3 H = normalize(L + V);
     vec3 F0= mix(vec3(0.04), albedoMesh, metalic);
-    //vec3 F0= vec3(0.5 + 2*roughness*pow(0.04,2));
+    //F0= vec3(0.5 + 2*roughness*pow(0.04,2));
 
     vec3 Ks = F(F0, V, L, H); // specular
     vec3 Kd = vec3(1.0) - Ks; //diffuse
@@ -114,11 +113,11 @@ void main()
     vec3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator; 
 
     vec3 BRDF = Kd * lambert + cookTorrance;
-    vec3 outgoingLight = emissivityMesh + BRDF * radiance * 20 * max(dot(L, N), 0.0);
+    vec3 outgoingLight = emissivityMesh + BRDF * radiance * 20.0f * max(dot(L, N), 0.0);
 
     result += outgoingLight;
 
-    //result = textureMesh.xyz*ambient;
+    result += ambient;
     result = clamp(result, vec3(0), vec3(1.0f));
     finalColor = vec4(result, textureMesh.a);
 }
