@@ -238,14 +238,21 @@ void imguiRenderer::Close() {
 
 
 void imguiRenderer::ImageCenter(ImVec2 viewportSize, int& width, int& height){
-    if(width*height < viewportSize.x*viewportSize.y)
+    float windowW = viewportSize.x;
+    float windowH = viewportSize.x;
+    float aspectRation = width/height;
+    float imageScale = 1;
+    if(width < height)
     {
-        int scale = (width + height) / (viewportSize.x * viewportSize.y) ;
-        width *= scale;
-        height*= scale;
+        windowH = windowH / aspectRation;
+        imageScale = viewportSize.x/windowH;
     }else{
-        width = viewportSize.x;
-        height= viewportSize.y;
+        windowH = windowH * aspectRation;
+        imageScale = viewportSize.y/windowH;
+    }
+    if(windowH < viewportSize.x){
+        windowW = viewportSize.x * imageScale;
+        windowH = viewportSize.y * imageScale;
     }
     ImGui::SetCursorPos(ImVec2(
                 (ImGui::GetWindowSize().x - width) * 0.5f, 
