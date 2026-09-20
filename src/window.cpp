@@ -232,12 +232,14 @@ void window::Loop() {
         if(inputActive){
             inputManager->Update();
         }
-
-        rlEnableColorBlend();
-        rlSetBlendMode(RL_BLEND_ALPHA);
+        rlClearScreenBuffers();
+        BeginTextureMode(*Meshrenderer.resultTexture);
+        rlSetBlendMode(BlendMode::BLEND_ALPHA);
         UIrendererer.Loop();
+        EndTextureMode();
+
+        rlClearScreenBuffers();
         ImguiRenderer.Loop();
-        rlDisableColorBlend();
     EndDrawing();
     
 

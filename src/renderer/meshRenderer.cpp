@@ -25,7 +25,6 @@ public:
     
     std::vector<RenderTexture2D> renTextures{};
     RenderTexture2D* resultTexture;
-    RenderTexture2D pbrTexture;
     Game* game = nullptr;
     Scene* scene = nullptr;
 
@@ -69,7 +68,6 @@ void meshRenderer::Init(){
     if(game == nullptr) std::cout << "game nullptr" << std::endl;
     if(scene == nullptr) std::cout << "scene nullptr" << std::endl;
    
-    pbrTexture = LoadRenderTextureWithDepth(1280, 720);
     for (auto &light : scene->lights) {
         std::cout << "light" << std::endl; 
         light.shadowTexture = LoadRenderTextureWithDepth(shadowMapResolution, shadowMapResolution);
@@ -128,15 +126,12 @@ void meshRenderer::Loop(){
                 // light0 * shadow0
                 //+light1 * shadow1
                 //+light2 * shadow2
-                rlClearScreenBuffers();
-
-                ClearBackground(WHITE);
                 rlCullMode(RL_CULL_FACE_BACK);
-                //BeginTextureMode(pbrTexture);
                 //renderDepth();
                 for(int index = 0; index < scene->lights.size(); ++index){
                     pbrLoop(layerIndex, index);
                 }
+                //auto framebuffer = rlLoadTextureDepth(resultTexture->texture.width, resultTexture->texture.height, true);
 
                 rlEnableColorBlend();
                 for(int index = 0; index < scene->lights.size(); ++index){
@@ -149,9 +144,7 @@ void meshRenderer::Loop(){
                                             (float)-scene->lights[index].shadowsrendered.texture.height},
                                    Vector2{0, 0}, WHITE);
 
-                    rlDrawRenderBatchActive();
-                    //rlSetBlendFactors(RL_SRC_ALPHA, RL_ZERO, RL_FUNC_ADD);
-                    rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                    rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_SRC_ALPHA, RL_ONE, RL_FUNC_ADD, RL_FUNC_ADD);
                     rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
 
                     DrawTextureRec(scene->lights[index].shadowsCalculated.texture,
@@ -160,7 +153,6 @@ void meshRenderer::Loop(){
                                             (float)-scene->lights[index].shadowsCalculated.texture.height},
                                    Vector2{0, 0}, WHITE);
 
-                    rlDrawRenderBatchActive();
                     EndTextureMode();
                 } 
                 
@@ -174,12 +166,16 @@ void meshRenderer::Loop(){
                                             (float)scene->lights[index].shadowTexture.texture.width, 
                                             (float)-scene->lights[index].shadowTexture.texture.height},
                                    Vector2{0, 0}, WHITE);
-                    rlDrawRenderBatchActive();
                 }
+                /*
+                rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
+                rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
+                lightSphereLoop();
+                */
+                rlSetBlendMode(BlendMode::BLEND_ALPHA);
 
                 EndTextureMode();
 
-                //lightSphereLoop();
 
                 //EndTextureMode();
             }break;
@@ -434,6 +430,7 @@ void meshRenderer::pbrLoop(int layerId, int lightIndex)
                 DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], model.transform);
             }
         }
+        lightSphereLoop();
     }
     EndShaderMode();
     EndMode3D();
@@ -443,13 +440,11 @@ void meshRenderer::pbrLoop(int layerId, int lightIndex)
 }
 
 void meshRenderer::lightSphereLoop(){
-    BeginMode3D(scene->mainCam);
     for(size_t lightIndex = 0; lightIndex < scene->lights.size(); ++lightIndex)
     {
         Light &light = scene->lights[lightIndex];
         DrawSphere(scene->lights[lightIndex].cam.position, 0.2f, BLUE);
     }
-    EndMode3D();
 }
 
 RenderTexture2D meshRenderer::LoadRenderTextureWithDepth(int width, int height) {

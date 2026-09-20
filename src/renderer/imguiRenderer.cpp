@@ -97,6 +97,7 @@ void imguiRenderer::Loop() {
         auto imageWidth = screenTexture->texture.width;
         auto imageHeight = screenTexture->texture.height;
         ImageCenter(viewportSize, imageWidth, imageHeight);
+        //
 
         ImGui::Image((ImTextureID)screenTexture->texture.id, ImVec2(imageWidth, imageHeight), 
                         ImVec2(0, 1), 
@@ -241,21 +242,16 @@ void imguiRenderer::ImageCenter(ImVec2 viewportSize, int& width, int& height){
     float windowW = viewportSize.x;
     float windowH = viewportSize.x;
     float aspectRation = width/height;
-    float imageScale = 1;
-    if(width < height)
-    {
-        windowH = windowH / aspectRation;
-        imageScale = viewportSize.x/windowH;
-    }else{
-        windowH = windowH * aspectRation;
-        imageScale = viewportSize.y/windowH;
-    }
-    if(windowH < viewportSize.x){
-        windowW = viewportSize.x * imageScale;
-        windowH = viewportSize.y * imageScale;
-    }
+    float imageScale = std::min(
+        windowW / width,
+        windowH / height
+    );
+
+    width *= imageScale;
+    height*= imageScale;
+
     ImGui::SetCursorPos(ImVec2(
-                (ImGui::GetWindowSize().x - width) * 0.5f, 
-                (ImGui::GetWindowSize().y - height)* 0.5f)
-            );
+        (viewportSize.x - width) * 0.5f + ImGui::GetCursorPos().x, 
+        (viewportSize.y - height)* 0.5f + ImGui::GetCursorPos().y)
+    );
 }
