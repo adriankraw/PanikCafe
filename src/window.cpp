@@ -219,7 +219,11 @@ void window::Loop() {
             game.layer[i].reloadShader = true;
         }
         if(game.layer[i].reloadShader){
-            game.layer[i].shader = LoadShader(game.layer[i].shaderVertex.c_str(),game.layer[i].shaderFragment.c_str());
+            int vl = game.layer[i].shaderVertex.length();
+            game.layer[i].shader = LoadShader(
+                        vl>0?game.layer[i].shaderVertex.c_str():0,
+                        game.layer[i].shaderFragment.c_str()
+                    );
             game.layer[i].reloadShader = false;
         }
     }
@@ -232,13 +236,12 @@ void window::Loop() {
         if(inputActive){
             inputManager->Update();
         }
-        rlClearScreenBuffers();
+        //rlClearScreenBuffers();
         BeginTextureMode(*Meshrenderer.resultTexture);
         rlSetBlendMode(BlendMode::BLEND_ALPHA);
         UIrendererer.Loop();
         EndTextureMode();
 
-        rlClearScreenBuffers();
         ImguiRenderer.Loop();
     EndDrawing();
     

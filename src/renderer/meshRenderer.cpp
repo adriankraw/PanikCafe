@@ -144,7 +144,7 @@ void meshRenderer::Loop(){
                                             (float)-scene->lights[index].shadowsrendered.texture.height},
                                    Vector2{0, 0}, WHITE);
 
-                    rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_SRC_ALPHA, RL_ONE, RL_FUNC_ADD, RL_FUNC_ADD);
+                    rlSetBlendFactorsSeparate(RL_DST_COLOR, RL_ZERO, RL_SRC_ALPHA, RL_ZERO, RL_FUNC_ADD, RL_FUNC_ADD);
                     rlSetBlendMode(BlendMode::BLEND_CUSTOM_SEPARATE);
 
                     DrawTextureRec(scene->lights[index].shadowsCalculated.texture,
@@ -381,22 +381,23 @@ void meshRenderer::RenderScreenTexture(int layerId){
 
     // screentexture
     //ClearBackground(game->layer[layerid].backgroundColor);
-    if (game->layer[layerId].clearBackground){
-        rlClearScreenBuffers();
-        ClearBackground(Color{
-            (unsigned char)game->layer[layerId].backgroundColor[0],
-            (unsigned char)game->layer[layerId].backgroundColor[1],
-            (unsigned char)game->layer[layerId].backgroundColor[2],
-            (unsigned char)game->layer[layerId].backgroundColor[3]});
-    }
-
     BeginShaderMode(screenShader);
     {
+        if (game->layer[layerId].clearBackground){
+            rlClearScreenBuffers();
+            ClearBackground(Color{
+                (unsigned char)game->layer[layerId].backgroundColor[0],
+                (unsigned char)game->layer[layerId].backgroundColor[1],
+                (unsigned char)game->layer[layerId].backgroundColor[2],
+                (unsigned char)game->layer[layerId].backgroundColor[3]});
+        }
         //RenderTexture &screenTexture = scene->lights[lightIndex].shadowsCalculated;
+        BeginTextureMode(screenTexture);
         SetShaderValueTexture(screenShader, rlGetLocationUniform(screenShader.id, "colormap"), colorMap);
         DrawTextureRec(screenTexture.texture,
                        Rectangle{0, 0, (float)screenTexture.texture.width, (float)-screenTexture.texture.height},
                        Vector2{0, 0}, WHITE);
+        EndTextureMode();
     }
     EndShaderMode();
 }
