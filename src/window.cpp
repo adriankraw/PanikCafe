@@ -163,6 +163,7 @@ void window::Init(int width, int height, const std::string title) {
         .nextNode = 5,
         .prevNode = 3,
         .nodeType = renderer::RenderState::screen,
+        .clearBackground=true,
         .backgroundColor={0,0,0,1},
         .shader=ShaderManager.list.back(),
         .shaderVertex = "",
