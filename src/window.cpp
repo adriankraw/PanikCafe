@@ -12,6 +12,8 @@
 
 #include "./imgui/imgui.h"
 
+#include <ctime>
+#include <iostream>
 #include <raylib.h>
 #define RAYGUI_IMPLEMENTATION
 #include <raymath.h>
@@ -27,13 +29,15 @@ class window {
     void Loop();
     void Close();
 
-  private:
-    meshRenderer meshrenderer{};
-    uiRenderer UIrendererer{};
-    imguiRenderer imguiRenderer{};
+    bool inputActive = false;
 
-    meshManager meshManager{};
-    shaderManager shaderManager{};
+  private:
+    meshRenderer Meshrenderer{};
+    uiRenderer UIrendererer{};
+    imguiRenderer ImguiRenderer{};
+
+    meshManager MeshManager{};
+    shaderManager ShaderManager{};
 
     RenderTexture2D renderTarget;
 
@@ -50,34 +54,38 @@ window::~window() {}
 
 
 void window::Init(int width, int height, const std::string title) {
+
+
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetTargetFPS(30);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_HIGHDPI);
+
     InitWindow(width, height, title.c_str());
     config::getInstance().LoadConfig();
-
+    
+    float clipmin = 1.0f;
+    float clipmax = 60.0f;
+    mainscene.clipRange = Vector2{clipmin, clipmax};
     game.scenes.push_back(mainscene);
 
     GetFontDefault() = config::getInstance().fontNormal;
 
-    meshrenderer.game = &game;
-    meshrenderer.scene = &game.scenes.at(0);
+    Meshrenderer.game = &game;
+    Meshrenderer.scene = &game.scenes.at(0);
     UIrendererer.game = &game;
-    meshrenderer.Init();
+    Meshrenderer.Init();
     UIrendererer.Init();
-    imguiRenderer.Init();
+    ImguiRenderer.Init();
 
-    renderTarget = meshrenderer.LoadRenderTextureWithDepth(width, height);
-    meshrenderer.resultTexture = &renderTarget;
+    renderTarget = Meshrenderer.LoadRenderTextureWithDepth(width, height);
+    Meshrenderer.resultTexture = &renderTarget;
 
-    imguiRenderer.game = &game;
-    imguiRenderer.meshRenderer = &meshrenderer;
-    imguiRenderer.screenTexture = &renderTarget;
+    ImguiRenderer.game = &game;
+    ImguiRenderer.screenTexture = &renderTarget;
     inputManager->scene = &game.scenes.at(0);
 
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
-    SetTargetFPS(60);
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-
-    rlSetClipPlanes(5.0f, 60.0f);
+    rlSetClipPlanes(clipmin, clipmax);
 
     float shadowMapResolution = 512 * 2;
 
@@ -87,55 +95,30 @@ void window::Init(int width, int height, const std::string title) {
     float uniformScale = 1.25f;
     float time = 0;
 
-    meshManager.Import("./Assets/models/CafeBarRoom.glb");
-    meshManager.Import("./Assets/models/CafeBar.glb");
-    meshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
-    meshManager.Import("./Assets/models/KitFox.glb");
-    meshManager.Import("./Assets/models/Customers.glb");
+    MeshManager.Import("./Assets/models/CafeBarRoom.glb");
+    MeshManager.Import("./Assets/models/CafeBar.glb");
+    MeshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
+    MeshManager.Import("./Assets/models/KitFox.glb");
+    MeshManager.Import("./Assets/models/Customers.glb");
 
-    game.scenes.at(0).LoadScene(&meshManager);
+    game.scenes.at(0).LoadScene(&MeshManager);
 
+    game.layer[0] = (renderer::RenderLayer{
+        .name = "null",
+        .nextNode = 1,
+        .nodeType = renderer::RenderState::null
+    });
     //Depth
-    shaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
-    game.layer[game.lastaddedLayer] = (renderer::RenderLayer{
-        .name ="Depth",
-        .clearBackground=true,
-        .cullMode=RL_CULL_FACE_FRONT,
-        .backgroundColor={255,255,255,1},
-        .shader=shaderManager.list.back(),
-    });
+    ShaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
     //Shadow
-    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
-    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
-        .name ="Shadow",
-        .clearBackground=true,
-        .cullMode=RL_CULL_FACE_FRONT,
-        .blendMode=RL_BLEND_MULTIPLIED,
-        .backgroundColor={255,255,255,1},
-        .shader=shaderManager.list.back(),
-    });
+    ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
     //pbr
-    shaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
-    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
-        .name ="Pbr",
-        .clearBackground=true,
-        .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
-    });
+    ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
     //screen
-    shaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
-    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
-        .name ="Screen",
-        .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
-    });
-    game.layer[++game.lastaddedLayer] = (renderer::RenderLayer{
-        .name ="UI",
-        .backgroundColor={0,0,0,1},
-        .shader=shaderManager.list.back(),
-    });
+    ShaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
+    game.lastaddedLayer = 5;
 
-    meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
+    Meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
 
     SetTraceLogLevel(LOG_WARNING);
    
@@ -155,24 +138,51 @@ void window::Init(int width, int height, const std::string title) {
 }
 
 void window::Loop() {
+    inputActive = ImguiRenderer.ishovered;
+
     Ray ray = {0};
     RayCollision collision = {0};
 
+    for(int i = 0; i < game.lastaddedLayer; ++i){
+        if(game.layer[i].shaderVertexModTime != GetFileModTime(game.layer[i].shaderVertex.c_str())){
+            game.layer[i].shaderVertexModTime = GetFileModTime(game.layer[i].shaderVertex.c_str());
+            game.layer[i].reloadShader = true;
+        }
+        if(game.layer[i].shaderFragmentModTime != GetFileModTime(game.layer[i].shaderFragment.c_str())){
+            game.layer[i].shaderFragmentModTime = GetFileModTime(game.layer[i].shaderFragment.c_str());
+            game.layer[i].reloadShader = true;
+        }
+        if(game.layer[i].reloadShader){
+            int vl = game.layer[i].shaderVertex.length();
+            game.layer[i].shader = LoadShader(
+                        vl>0?game.layer[i].shaderVertex.c_str():0,
+                        game.layer[i].shaderFragment.c_str()
+                    );
+            game.layer[i].reloadShader = false;
+        }
+    }
+
+
     BeginDrawing();
         ClearBackground(BLACK);
-        meshrenderer.Loop();
-        inputManager->Update();
+        Meshrenderer.Loop();
 
-        rlEnableColorBlend();
-        rlSetBlendMode(RL_BLEND_ALPHA);
+        if(inputActive){
+            inputManager->Update();
+        }
+        //rlClearScreenBuffers();
+        BeginTextureMode(*Meshrenderer.resultTexture);
+        rlSetBlendMode(BlendMode::BLEND_ALPHA);
         UIrendererer.Loop();
-        imguiRenderer.Loop();
-        //rlDisableColorBlend();
+        EndTextureMode();
+
+        ImguiRenderer.Loop();
     EndDrawing();
+    
 
     /*
     Light *lightCam = &game.scenes[0].lights[0];
-    ReadInput(&lightCam->cam.position, meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD
+    ReadInput(&lightCam->cam.position, Meshrenderer.shader[renderer::RenderState::shadow]); // light movement WASD
 
     if (game.customersCount < game.customersMax) {
         game.customersCooldown -= GetFrameTime();
@@ -228,7 +238,6 @@ void window::Loop() {
     }
     */
     notificationManager->Update();
-    inputManager->Update();
 }
 
 void window::Close() {

@@ -11,5 +11,7 @@
 ./../external/raylib/src
 -I 
 ./../external/raygui/src
+-I 
+./../external/json/single_include/nlohmann
 -L 
 ./../external/raylib/src

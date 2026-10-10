@@ -20,10 +20,46 @@ void main()
     float colorRes = 4196;
     float colorDiff = 0.2f;
     
+    //vec4 texelColor = vec4(0.0f,0.0f,0.0f,1.0f);
     vec4 texelColor = texture(texture0, uv);
     //texelColor.a = length(texelColor.xyz);
     //texelColor = texture(colormap, vec2(clamp(texelColor.a,0.0f,1.0f), 0.0f));
+    /*
+    float rangeOffset = 2.0f;
+    int multiplicator = 0;
+    mat3 lookup5 = mat3(
+            1, 4, 6,
+            4,16,24,
+            6,24,36
+            );
+    for(float x = -rangeOffset; x < rangeOffset; x+=1)
+    {
+        for(float y = -rangeOffset; y < rangeOffset; y+=1)
+        {
+            multiplicator = int(lookup5[int(rangeOffset-abs(x))][int(rangeOffset-abs(y))]);
+            texelColor += texture(texture0, uv + vec2(x/width, y/height)) * multiplicator*(1.0f/256.0f);
+        }
+    }
 
+    rangeOffset = 1.0f;
+    multiplicator = 0;
+    mat2 lookup3 = mat2(
+            1, 2,
+            2, 4
+            );
+    for(float x = -rangeOffset; x < rangeOffset; x+=1)
+    {
+        for(float y = -rangeOffset; y < rangeOffset; y+=1)
+        {
+            multiplicator = int(lookup3[int(rangeOffset-abs(x))][int(rangeOffset-abs(y))]);
+            texelColor -= texture(texture0, uv + vec2(x/width, y/height)) * multiplicator*(1.0f/16.0f);
+        }
+    }
+    if(texelColor.x + texelColor.y + texelColor.z > 0.1f)
+    {
+        texelColor = texture(texture0, uv)*1.0f;
+    }
+    */
     /*
     int samplerCount = 1;
 
@@ -46,6 +82,7 @@ void main()
         }
     }
     texelColor /= samplerCount;
+    /*
     if(length(texelColor.rgb) <= 1.0f)
     {
         texelColor = texture(texture0, uv);

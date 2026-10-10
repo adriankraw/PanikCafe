@@ -16,6 +16,7 @@ public:
     std::string name;
     Camera3D mainCam;
     Vector3 objPosition;
+    Vector2 clipRange{0,0};
     std::vector<GameObject> gameObjects{};
     std::vector<Light> lights{};
 
@@ -38,7 +39,7 @@ Scene::Scene(std::string n):name{n}{
     objPosition = {0,0,0};
 
     lights.emplace_back(Light{});
-    lights.back().Color = Vector3{1.0f, 0.04f, 0.24f};
+    lights.back().Color = Vector3{0.99f, 0.99f, 0.8f};
     lights.back().amplitude = 10;
     Camera3D *lightCam = &lights.back().cam;
     lightCam->position = Vector3{4.7f, 7.8f, 3.7f};
@@ -48,7 +49,7 @@ Scene::Scene(std::string n):name{n}{
     lightCam->fovy = 20.0f;
     
     lights.emplace_back(Light{});
-    lights.back().Color = Vector3{0.2f, 1.0f, 0.3f};
+    lights.back().Color = Vector3{0.99f, 0.99f, 0.8f};
     lights.back().amplitude = 10;
     lightCam = &lights.back().cam;
     lightCam->position = Vector3{2.573f, 3.8829f, 6.510f};
@@ -58,7 +59,7 @@ Scene::Scene(std::string n):name{n}{
     lightCam->fovy = 20.0f;
 
     lights.emplace_back(Light{});
-    lights.back().Color = Vector3{0.0f, 0.01f, 0.8f};
+    lights.back().Color = Vector3{0.99f, 0.99f, 0.8f};
     lights.back().amplitude = 10;
     lightCam = &lights.back().cam;
     lightCam->position = Vector3{7.303f, 3.883f, 6.510f};
