@@ -95,12 +95,11 @@ void window::Init(int width, int height, const std::string title) {
     float uniformScale = 1.25f;
     float time = 0;
 
-    MeshManager.Import("./Assets/models/CafeBarRoom.glb");
-    MeshManager.Import("./Assets/models/CafeBar.glb");
-    MeshManager.Import("./Assets/models/CafeBar_Event_Ball.glb");
-    MeshManager.Import("./Assets/models/KitFox.glb");
-    MeshManager.Import("./Assets/models/Customers.glb");
-
+    FilePathList files = LoadDirectoryFilesEx("./Assets/models", ".glb", false);
+    for (size_t fileIndex = 0; fileIndex < files.count; ++fileIndex)
+    {
+        MeshManager.Import(files.paths[fileIndex]);
+    }
     game.scenes.at(0).LoadScene(&MeshManager);
 
     game.layer[0] = (renderer::RenderLayer{
@@ -116,7 +115,6 @@ void window::Init(int width, int height, const std::string title) {
     ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
     //screen
     ShaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
-    game.lastaddedLayer = 5;
 
     Meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");
 
