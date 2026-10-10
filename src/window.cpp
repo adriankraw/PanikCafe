@@ -110,79 +110,12 @@ void window::Init(int width, int height, const std::string title) {
     });
     //Depth
     ShaderManager.Import("./Assets/shader/shadowmapVShader.glsl;./Assets/shader/shadowmapFShader.glsl");
-    game.layer[1] = (renderer::RenderLayer{
-        .name ="Depth",
-        .nextNode = 2,
-        .prevNode = 0,
-        .nodeType = renderer::RenderState::depth,
-        .clearBackground=true,
-        .cullMode=RL_CULL_FACE_FRONT,
-        .backgroundColor={255,255,255,1},
-        .shader=ShaderManager.list.back(),
-        .shaderVertex = "./Assets/shader/shadowmapVShader.glsl",
-        .shaderVertexModTime = GetFileModTime("./Assets/shader/shadowmapVShader.glsl"),
-        .shaderFragment = "./Assets/shader/shadowmapFShader.glsl",
-        .shaderFragmentModTime = GetFileModTime("./Assets/shader/shadowmapFShader.glsl"),
-    });
     //Shadow
     ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/shadowfragmentShader.glsl");
-    game.layer[2] = (renderer::RenderLayer{
-        .name ="Shadow",
-        .nextNode = 3,
-        .prevNode = 1,
-        .nodeType = renderer::RenderState::shadow,
-        .clearBackground=true,
-        .cullMode=RL_CULL_FACE_FRONT,
-        .blendMode=RL_BLEND_MULTIPLIED,
-        .backgroundColor={255,255,255,1},
-        .shader=ShaderManager.list.back(),
-        .shaderVertex = "./Assets/shader/vertexShader.glsl",
-        .shaderVertexModTime = GetFileModTime("./Assets/shader/vertexShader.glsl"),
-        .shaderFragment = "./Assets/shader/shadowfragmentShader.glsl",
-        .shaderFragmentModTime = GetFileModTime("./Assets/shader/shadowfragmentShader.glsl"),
-    });
     //pbr
     ShaderManager.Import("./Assets/shader/vertexShader.glsl;./Assets/shader/fragmentShader.glsl");
-    game.layer[3] = (renderer::RenderLayer{
-        .name ="Pbr",
-        .nextNode = 4,
-        .prevNode = 2,
-        .nodeType = renderer::RenderState::pbr,
-        .clearBackground=true,
-        .backgroundColor={0,0,0,1},
-        .shader=ShaderManager.list.back(),
-        .shaderVertex = "./Assets/shader/vertexShader.glsl",
-        .shaderVertexModTime = GetFileModTime("./Assets/shader/vertexShader.glsl"),
-        .shaderFragment = "./Assets/shader/fragmentShader.glsl",
-        .shaderFragmentModTime = GetFileModTime("./Assets/shader/fragmentShader.glsl")
-    });
     //screen
     ShaderManager.Import(";./Assets/shader/screenFragmentShader.glsl");
-    game.layer[4] = (renderer::RenderLayer{
-        .name ="Screen",
-        .nextNode = 5,
-        .prevNode = 3,
-        .nodeType = renderer::RenderState::screen,
-        .clearBackground=true,
-        .backgroundColor={0,0,0,1},
-        .shader=ShaderManager.list.back(),
-        .shaderVertex = "",
-        .shaderVertexModTime = 0,
-        .shaderFragment = "./Assets/shader/screenFragmentShader.glsl",
-        .shaderFragmentModTime = GetFileModTime("./Assets/shader/screenFragmentShader.glsl")
-    });
-    game.layer[5] = (renderer::RenderLayer{
-        .name ="UI",
-        .nextNode = 0,
-        .prevNode = 4,
-        .nodeType = renderer::RenderState::null,
-        .backgroundColor={0,0,0,1},
-        .shader=ShaderManager.list.back(),
-        .shaderVertex = "",
-        .shaderVertexModTime = 0,
-        .shaderFragment = "",
-        .shaderFragmentModTime = 0,
-    });
     game.lastaddedLayer = 5;
 
     Meshrenderer.colorMap = LoadTexture("./Assets/texture/colorMap.png");

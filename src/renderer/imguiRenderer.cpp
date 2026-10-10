@@ -3,6 +3,8 @@
 #include "meshRenderer.cpp"
 #include "../game.cpp"
 #include "../config.cpp"
+#include <fstream>
+#include <iomanip>
 
 #ifdef __APPLE__
     #include <__ios/fpos.h>
@@ -14,6 +16,7 @@
 #include <imgui_impl_raylib.h>
 #include <imgui.h>
 #include <raylib.h>
+#include <json.hpp>
 
 class imguiRenderer : public renderer {
   public:
@@ -141,6 +144,72 @@ void imguiRenderer::Loop() {
     treeNodeflag |= ImGuiTreeNodeFlags_Framed;
     treeNodeflag |= ImGuiTreeNodeFlags_Leaf;
     ImGui::Begin("Renderer");
+    ImGui::BeginGroup();
+    if(ImGui::SmallButton("Load/relaod Shader")){
+        using json = nlohmann::json;
+        std::fstream f("./Assets/shader.save");
+        json shadersettings = json::parse(f);
+        if(shadersettings.is_array()){
+            //lösche den derzeitigen game->layer array 
+            //resette game->lastlayerId
+            game->lastaddedLayer = 0;
+            for(auto& it :shadersettings){
+                std::string name = it["name"];
+                if(name.length()<64){
+                    std::strcpy(game->layer[game->lastaddedLayer].name, name.c_str());
+                    game->layer[game->lastaddedLayer].name;
+                }
+                game->layer[game->lastaddedLayer].nextNode = it["nextNode"];
+                game->layer[game->lastaddedLayer].prevNode = it["prevNode"];
+                game->layer[game->lastaddedLayer].nodeType = it["nodeType"];
+                game->layer[game->lastaddedLayer].clearBackground = it["clearBackground"];
+                game->layer[game->lastaddedLayer].cullMode = it["cullMode"];
+                game->layer[game->lastaddedLayer].blendMode = it["blendMode"];
+                game->layer[game->lastaddedLayer].backgroundColor[0] = it["backgroundColor"][0];
+                game->layer[game->lastaddedLayer].backgroundColor[1] = it["backgroundColor"][1];
+                game->layer[game->lastaddedLayer].backgroundColor[2] = it["backgroundColor"][2];
+                game->layer[game->lastaddedLayer].backgroundColor[3] = it["backgroundColor"][3];
+                game->layer[game->lastaddedLayer].shaderVertex = it["shaderVertex"];
+                game->layer[game->lastaddedLayer].shaderFragment = it["shaderFragment"];
+                game->layer[game->lastaddedLayer].reloadShader = true;
+                game->lastaddedLayer++;
+                //initialisiere den ganzen shader zeug
+                
+            }
+            for(size_t l = game->lastaddedLayer; l < LAYER_MAX ; ++l){
+                game->layer[game->lastaddedLayer].nextNode = 0;
+                game->layer[game->lastaddedLayer].prevNode = 0;
+                game->layer[game->lastaddedLayer].nodeType = 0;
+            }
+        }else{
+        }
+
+        f.close();
+    }
+    ImGui::SameLine();
+    if(ImGui::SmallButton("saveShader")){
+        using json = nlohmann::json;
+        std::ofstream f("./Assets/shader.save");
+        json j;
+        for(size_t i = 0; i <= game->lastaddedLayer; ++i){
+            json layerjson;
+            layerjson["name"] = game->layer[i].name;
+            layerjson["nextNode"] = game->layer[i].nextNode;
+            layerjson["prevNode"] = game->layer[i].prevNode;
+            layerjson["nodeType"] = game->layer[i].nodeType;
+            layerjson["clearBackground"] = game->layer[i].clearBackground;
+            layerjson["cullMode"] = game->layer[i].cullMode;
+            layerjson["blendMode"] = game->layer[i].blendMode;
+            layerjson["backgroundColor"] = game->layer[i].backgroundColor;
+            layerjson["shaderVertex"] = game->layer[i].shaderVertex;
+            layerjson["shaderFragment"] = game->layer[i].shaderFragment;
+            j.push_back(layerjson);
+        }
+
+        f << std::setw(4)<< j << std::endl;
+        f.close();
+    }
+    ImGui::EndGroup();
     for(int index = game->layer[0].nextNode; index != 0 ; index = game->layer[index].nextNode)
     {
         RenderLayer& layer = game->layer[index];

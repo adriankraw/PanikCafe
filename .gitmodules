@@ -11,3 +11,6 @@
 [submodule "external/raygui"]
 	path = external/raygui
 	url = https://github.com/raysan5/raygui
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/nlohmann/json.git
