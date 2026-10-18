@@ -248,15 +248,24 @@ void meshRenderer::shadow_inLightMVP(int layerid)
                 SetShaderValueMatrix(shadowmapShader, GetShaderLocation(shadowmapShader, "matLightVP"), light.projectionMatrix);
 
                 for (int model_index = 0; model_index < scene->gameObjects.size(); ++model_index) {
-                    if (scene->gameObjects[model_index].depthIgnore && false)
+                    if (scene->gameObjects[model_index].depthIgnore)
                         continue;
+                    Model model = scene->gameObjects[model_index].model;
+                    Vector3 trans = scene->gameObjects[model_index].translation;                    
+                    Vector3 rot   = scene->gameObjects[model_index].rotation;
+                    Vector3 scale = scene->gameObjects[model_index].scaling;
 
-                    Vector3 trans = scene->gameObjects[model_index].translation;
                     if (scene->gameObjects[model_index].animations.size() > 0) {
                         float frame = scene->gameObjects[model_index].animationsFrame;
                         updateObjectTransformByAnim(&trans, model_index, frame);
                     }
-                    DrawModelEx(scene->gameObjects[model_index].model, trans, Vector3{0, 0, 0}, 1.0f, Vector3{1, 1, 1}, WHITE);
+                    for(int mesh_index = 0; mesh_index < scene->gameObjects[model_index].model.meshCount; ++mesh_index){
+                        Matrix trans = model.transform;
+                        trans *= MatrixTranslate(scene->gameObjects[model_index].translation.x, scene->gameObjects[model_index].translation.y, scene->gameObjects[model_index].translation.z);
+                        trans += MatrixRotateXYZ(scene->gameObjects[model_index].rotation);
+                        trans *= MatrixScale(scene->gameObjects[model_index].scaling.x, scene->gameObjects[model_index].scaling.y, scene->gameObjects[model_index].scaling.z);
+                        DrawMesh(model.meshes[mesh_index], model.materials[model.meshMaterial[mesh_index]], trans);
+                    }
                 }
 
                 for (size_t cu = 0; cu < game->customers.size(); ++cu) {
@@ -281,9 +290,15 @@ void meshRenderer::renderDepth()
     BeginMode3D(scene->mainCam);
     {
         for (size_t gO = 0; gO < scene->gameObjects.size(); ++gO) {
-            Vector3 trans = scene->gameObjects[gO].translation;
-            auto &model = scene->gameObjects[gO].model;
-            DrawModel(model, trans, 1.0f, WHITE);
+            Vector3 trans = scene->gameObjects[gO].translation;                    
+            Vector3 rot   = scene->gameObjects[gO].rotation;
+            Vector3 scale = scene->gameObjects[gO].scaling;
+
+            if (scene->gameObjects[gO].animations.size() > 0) {
+                float frame = scene->gameObjects[gO].animationsFrame;
+                updateObjectTransformByAnim(&trans, gO, frame);
+            }
+            DrawModelEx(scene->gameObjects[gO].model, trans, rot, 1.0f, scale, WHITE);
         }
     }
     EndMode3D();
@@ -344,7 +359,11 @@ void meshRenderer::shadow_ToCameraMVP(int layerId)
                     for (size_t meshIndex = 0; meshIndex < model.meshCount; ++meshIndex) {
                         //model.materials[model.meshMaterial[meshIndex]].shader.locs[1] = shadow0loc;
                         model.materials[model.meshMaterial[meshIndex]].maps[1].texture = light.shadowTexture.depth;
-                        DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], model.transform);
+                        Matrix trans = model.transform;
+                        trans *= MatrixTranslate(scene->gameObjects[gO].translation.x, scene->gameObjects[gO].translation.y, scene->gameObjects[gO].translation.z);
+                        trans += MatrixRotateXYZ(scene->gameObjects[gO].rotation);
+                        trans *= MatrixScale(scene->gameObjects[gO].scaling.x, scene->gameObjects[gO].scaling.y, scene->gameObjects[gO].scaling.z);
+                        DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], trans);
                     }
                 }
             }
@@ -428,7 +447,11 @@ void meshRenderer::pbrLoop(int layerId, int lightIndex)
             auto &model = scene->gameObjects[gO].model;
             for (size_t meshIndex = 0; meshIndex < model.meshCount; ++meshIndex) {
                 model.materials[model.meshMaterial[meshIndex]].shader = pbrShader;
-                DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], model.transform);
+                Matrix trans = model.transform;
+                trans *= MatrixTranslate(scene->gameObjects[gO].translation.x, scene->gameObjects[gO].translation.y, scene->gameObjects[gO].translation.z);
+                trans += MatrixRotateXYZ(scene->gameObjects[gO].rotation);
+                trans *= MatrixScale(scene->gameObjects[gO].scaling.x, scene->gameObjects[gO].scaling.y, scene->gameObjects[gO].scaling.z);
+                DrawMesh(model.meshes[meshIndex], model.materials[model.meshMaterial[meshIndex]], trans);
             }
         }
         lightSphereLoop();

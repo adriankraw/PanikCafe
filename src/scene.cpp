@@ -80,7 +80,7 @@ Scene::~Scene() {
 void Scene::LoadScene(meshManager *meshManager){
     for(int i = 0; i < meshManager->list.size(); ++i)
     {
-        gameObjects.emplace_back(GameObject("empty", meshManager->list.at(i), Vector3{0,0,0}, Vector3{0,0,0}, Vector3{1,1,1}));
+        gameObjects.emplace_back(meshManager->list.at(i));
     }
     std::cout << name << ": " << gameObjects.size() << std::endl;
 }

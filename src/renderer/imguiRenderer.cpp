@@ -79,6 +79,28 @@ void imguiRenderer::Loop() {
 
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(ImGui::GetID("Lights"), NULL);
+    
+    ImGui::Begin("Hierarchy");
+    {
+        ImGuiTreeNodeFlags treeNodeflag = ImGuiTreeNodeFlags_DefaultOpen;
+        treeNodeflag |= ImGuiTreeNodeFlags_Framed;
+        treeNodeflag |= ImGuiTreeNodeFlags_Leaf;
+        for(auto index = 0; index < game->scenes[0].gameObjects.size(); ++index)
+        {
+            ImGui::PushID(index);
+            if(ImGui::TreeNodeEx(std::to_string(index).c_str(), treeNodeflag)){
+                ImGui::Text(game->scenes[0].gameObjects[index].name.c_str());
+                ImGui::InputFloat3("Pos", &game->scenes[0].gameObjects[index].translation.x);
+                ImGui::InputFloat3("Scale", &game->scenes[0].gameObjects[index].scaling.x);
+                ImGui::InputFloat3("Rota", &game->scenes[0].gameObjects[index].rotation.x);
+                ImGui::Checkbox("Ignore for Depth", &game->scenes[0].gameObjects[index].depthIgnore);
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+            ImGui::Spacing();
+        }
+    }
+    ImGui::End();
 
     ImGui::Begin("Lights");
     for(auto index = 0; index < game->scenes[0].lights.size(); ++index)
