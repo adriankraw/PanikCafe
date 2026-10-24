@@ -5,6 +5,26 @@
 
 #include <raylib.h>
 
+Vector2 GetGameMousePosition();
+
+Vector2 mouseOffset = Vector2{0,0};
+Vector2 mouseScale  = Vector2{1,1};
+
+Vector2 GetGameMousePosition()
+{
+    Vector2 mouse = GetMousePosition();
+
+    Vector2 result = {
+        (mouse.x - mouseOffset.x) / mouseScale.x,
+        (mouse.y - mouseOffset.y) / mouseScale.y
+    };
+    return result;
+}
+
+#define GUI_POINTER_POSITION    GetGameMousePosition()
+
+
+
 class config {
 public:
     static config& getInstance(){

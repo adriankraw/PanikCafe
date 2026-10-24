@@ -1,8 +1,8 @@
 #pragma once
 #include "renderer.cpp"
-#include "meshRenderer.cpp"
 #include "../game.cpp"
 #include "../config.cpp"
+#include "uiRenderer.cpp"
 #include <fstream>
 #include <iomanip>
 
@@ -72,10 +72,10 @@ void imguiRenderer::Init() {
 }
 
 void imguiRenderer::Loop() {
+    ImGuiIO &io = ImGui::GetIO();
     ImGui_ImplRaylib_ProcessEvents();
     ImGui_ImplRaylib_NewFrame();
-
-    ishovered = ImGui::GetIO().WantCaptureMouse;
+    ishovered = io.WantCaptureMouse;
 
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(ImGui::GetID("Lights"), NULL);
@@ -136,6 +136,31 @@ void imguiRenderer::Loop() {
                         ImVec2(1, 0)); 
 
         ishovered = ishovered && ImGui::IsItemHovered();
+
+        if (ishovered)
+        {
+            GuiEnable();
+
+            ImVec2 min = ImGui::GetItemRectMin();
+            ImVec2 max = ImGui::GetItemRectMax();
+
+            mouseOffset = Vector2{min.x + ImGui::GetScrollX(),min.y + ImGui::GetScrollY()};
+            
+            mouseScale = Vector2{
+                (float)imageWidth  / screenTexture->texture.width,
+                (float)imageHeight / screenTexture->texture.height
+            };
+        }
+        else
+        {
+            GuiDisable();
+            mouseOffset.x = 0;
+            mouseOffset.y = 0;
+            mouseScale.x  = 1;
+            mouseScale.y  = 1;
+        }
+        std::string text = std::to_string(GetGameMousePosition().x) + "/" + std::to_string(GetGameMousePosition().y);
+        ImGui::SetTooltip(text.c_str());
     }
     ImGui::End();
 
