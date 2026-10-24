@@ -87,9 +87,17 @@ void imguiRenderer::Loop() {
         treeNodeflag |= ImGuiTreeNodeFlags_Leaf;
         for(auto index = 0; index < game->scenes[0].gameObjects.size(); ++index)
         {
+            std::string name = game->scenes[0].gameObjects[index].name;
+            size_t nameCharIndex = 0;
+            nameCharIndex = name.find_last_of('/');
+            if(nameCharIndex < 0){
+                nameCharIndex = name.find_last_of('\\');
+            }
+            nameCharIndex = name.find_last_of('/');
+            name = name.substr(nameCharIndex+1);
+
             ImGui::PushID(index);
-            if(ImGui::TreeNodeEx(std::to_string(index).c_str(), treeNodeflag)){
-                ImGui::Text(game->scenes[0].gameObjects[index].name.c_str());
+            if(ImGui::TreeNodeEx(name.c_str(), treeNodeflag)){
                 ImGui::InputFloat3("Pos", &game->scenes[0].gameObjects[index].translation.x);
                 ImGui::InputFloat3("Scale", &game->scenes[0].gameObjects[index].scaling.x);
                 ImGui::InputFloat3("Rota", &game->scenes[0].gameObjects[index].rotation.x);
