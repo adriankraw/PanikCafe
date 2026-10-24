@@ -93,7 +93,6 @@ void imguiRenderer::Loop() {
             if(nameCharIndex < 0){
                 nameCharIndex = name.find_last_of('\\');
             }
-            nameCharIndex = name.find_last_of('/');
             name = name.substr(nameCharIndex+1);
 
             ImGui::PushID(index);
