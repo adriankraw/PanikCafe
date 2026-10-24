@@ -159,8 +159,6 @@ void imguiRenderer::Loop() {
             mouseScale.x  = 1;
             mouseScale.y  = 1;
         }
-        std::string text = std::to_string(GetGameMousePosition().x) + "/" + std::to_string(GetGameMousePosition().y);
-        ImGui::SetTooltip(text.c_str());
     }
     ImGui::End();
 
@@ -211,7 +209,6 @@ void imguiRenderer::Loop() {
                 std::string name = it["name"];
                 if(name.length()<64){
                     std::strcpy(game->layer[game->lastaddedLayer].name, name.c_str());
-                    game->layer[game->lastaddedLayer].name;
                 }
                 game->layer[game->lastaddedLayer].nextNode = it["nextNode"];
                 game->layer[game->lastaddedLayer].prevNode = it["prevNode"];
